@@ -1,0 +1,100 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Drive</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        .file-card {
+            transition: transform 0.3s ease;
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .file-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row mb-5">
+            <div class="col-md-8">
+                <h1 class="display-4">Simple Drive</h1>
+                <p class="lead text-muted">Upload, download, and manage your files</p>
+            </div>
+            <div class="col-md-4 d-flex align-items-center justify-content-end">
+                <form action="{{ url_for('drive.upload') }}" method="post" enctype="multipart/form-data" class="d-flex">
+                    <input type="file" name="file" class="form-control me-2" required>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if files %}
+            <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+                {% for file in files %}
+                    <div class="col">
+                        <div class="card h-100 file-card">
+                            <div class="card-body text-center">
+                                <div class="file-icon">
+                                    {% if file.mimetype.startswith('image/') %}
+                                        <i class="bi bi-file-image"></i>
+                                    {% elif file.mimetype.startswith('video/') %}
+                                        <i class="bi bi-file-play"></i>
+                                    {% elif file.mimetype.startswith('audio/') %}
+                                        <i class="bi bi-file-music"></i>
+                                    {% elif file.mimetype == 'application/pdf' %}
+                                        <i class="bi bi-file-pdf"></i>
+                                    {% elif 'spreadsheet' in file.mimetype or 'excel' in file.mimetype %}
+                                        <i class="bi bi-file-spreadsheet"></i>
+                                    {% elif 'document' in file.mimetype or 'word' in file.mimetype %}
+                                        <i class="bi bi-file-word"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark"></i>
+                                    {% endif %}
+                                </div>
+                                <h5 class="card-title text-truncate" title="{{ file.original_filename }}">{{ file.original_filename }}</h5>
+                                <p class="card-text text-muted">{{ (file.size / 1024)|round(1) }} KB</p>
+                                <p class="card-text text-muted small">{{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                                <div class="d-flex justify-content-center mt-3">
+                                    <a href="{{ url_for('drive.download', file_id=file.id, original_filename=file.original_filename) }}" class="btn btn-sm btn-outline-primary me-2">Download</a>
+                                    <form action="{{ url_for('drive.delete', file_id=file.id, original_filename=file.original_filename) }}" method="post" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <div class="display-1 text-muted mb-3">
+                    <i class="bi bi-cloud-upload"></i>
+                </div>
+                <h2 class="text-muted">No files uploaded yet</h2>
+                <p class="lead">Upload your first file to get started</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css">
+</body>
+</html>
