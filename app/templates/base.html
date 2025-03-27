@@ -1,0 +1,290 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iDrive</title>
+    <link rel="stylesheet" href="https://bootswatch.com/5/zephyr/bootstrap.css">
+
+    <link rel="stylesheet" type="text/css"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+        integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" type="image/png" href="{{url_for('static', filename='assets/touch-icon.png')}}">
+    <style>
+        .file-card {
+            transition: transform 0.3s ease;
+        }
+
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .view-toggle {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar fixed-top bg-primary justify-content-between py-2">
+        <div class="row w-100">
+            <div class="col">
+                <div class="ms-2">
+                    <a class="navbar-brand text-white" href="{{url_for('drive.index')}}">
+                        <span class="me-2"><i class="fa-solid fa-hard-drive"></i></span>iDrive</a>
+                </div>
+            </div>
+
+            <div class="col-2 px-0 ">
+                <div class="btn-toolbar justify-content-end" role="toolbar" aria-label="Toolbar with button groups">
+                    <div class="btn-group mr-2" role="group" aria-label="First group">
+                        <button class="btn text-white dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-user fa-xl"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% if current_user.is_authenticated %}
+                            {% if current_user.isAdmin %}
+                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
+                                href="{{url_for('auth.reset_password')}}">
+                                <i class="fa-solid fa-unlock-keyhole"></i>&nbsp;Reset Password
+                            </a>
+                            {% endif %}
+                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
+                                href="{{url_for('auth.change_password')}}">
+                                <i class="fa-solid fa-user-pen"></i>&nbsp;Change Password
+                            </a>
+                            <a href="{{url_for('auth.logout')}}" class="list-group-item list-group-item-action p-3 loader fs-6">
+                                <i class="fa-solid fa-lock"></i>&nbsp;Logout
+                            </a>
+                            {% else %}
+                            <a href="{{url_for('auth.login')}}" class="list-group-item list-group-item-action p-3 loader fs-6">
+                                <i class="fa-solid fa-lock-open"></i>&nbsp;Login
+                            </a>
+                            {% endif %}
+        
+                        </ul>
+                    </div>
+                    <div class="btn-group mr-2" role="group" aria-label="Second group">
+                        <button class="btn text-white border border-light" type="button" data-bs-toggle="offcanvas"
+                            data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+                            <i class="fa-solid fa-bars fa-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="offcanvasMenu"
+            aria-labelledby="offcanvasMenu">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasMenuLabel"><i></i>&nbsp;iDrive</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <p><strong>Menu</strong></p>
+                <div class="list-group list-group-flush fs-7">
+
+                    {% if current_user.is_authenticated %}
+                    {% if current_user.isAdmin %}
+                    <a class="list-group-item list-group-item-action py-3 loader" href="">
+                        <i class="fa-solid fa-gauge"></i>&nbsp;Admin
+                    </a>
+                    {% endif %}
+                    <a href="{{url_for('wasabi_drive.index')}}"
+                        class="list-group-item list-group-item-action py-3 loader">
+                        <i class="fa-solid"></i>&nbsp;Wasabi
+                    </a>
+                    {% else %}
+                    <a href="{{url_for('wasabi_drive.index')}}"
+                        class="list-group-item list-group-item-action py-3 loader">
+                        <i class="fa-solid fa-scale-unbalanced-flip"></i>&nbsp;Wasabi
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1 class="display-4">Simple Drive</h1>
+                <p class="lead text-muted">Upload, download, and manage your files</p>
+            </div>
+            <div class="col-md-4 d-flex align-items-center justify-content-end">
+                <form action="{{ url_for('drive.upload') }}" method="post" enctype="multipart/form-data" class="d-flex">
+                    <input type="file" name="file" class="form-control me-2" required>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% if files %}
+        <div class="view-toggle d-flex justify-content-end mb-3">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary active" id="cardViewBtn">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="tableViewBtn">
+                    <i class="bi bi-list-ul"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Card View -->
+        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4" id="cardView">
+            {% for file in files %}
+            <div class="col">
+                <div class="card h-100 file-card">
+                    <div class="card-body text-center">
+                        <div class="file-icon">
+                            {% if file.mimetype.startswith('image/') %}
+                            <i class="bi bi-file-image"></i>
+                            {% elif file.mimetype.startswith('video/') %}
+                            <i class="bi bi-file-play"></i>
+                            {% elif file.mimetype.startswith('audio/') %}
+                            <i class="bi bi-file-music"></i>
+                            {% elif file.mimetype == 'application/pdf' %}
+                            <i class="bi bi-file-pdf"></i>
+                            {% elif 'spreadsheet' in file.mimetype or 'excel' in file.mimetype %}
+                            <i class="bi bi-file-spreadsheet"></i>
+                            {% elif 'document' in file.mimetype or 'word' in file.mimetype %}
+                            <i class="bi bi-file-word"></i>
+                            {% else %}
+                            <i class="bi bi-file-earmark"></i>
+                            {% endif %}
+                        </div>
+                        <h5 class="card-title text-truncate" title="{{ file.original_filename }}">{{
+                            file.original_filename }}</h5>
+                        <p class="card-text text-muted">{{ (file.size / 1024)|round(1) }} KB</p>
+                        <p class="card-text text-muted small">{{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}</p>
+                        <div class="d-flex justify-content-center mt-3">
+                            <a href="{{ url_for('drive.download', file_id=file.id, original_filename=file.original_filename) }}"
+                                class="btn btn-sm btn-outline-primary me-2">Download</a>
+                            <form
+                                action="{{ url_for('drive.delete', file_id=file.id, original_filename=file.original_filename) }}"
+                                method="post" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Table View (Hidden by default) -->
+        <div id="tableView" style="display: none;">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="text-center">Type</th>
+                            <th>Filename</th>
+                            <th>Size</th>
+                            <th>Upload Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in files %}
+                        <tr>
+                            <td class="text-center">
+                                <div class="text-center">
+                                    {% if file.mimetype.startswith('image/') %}
+                                    <i class="bi bi-file-image"></i>
+                                    {% elif file.mimetype.startswith('video/') %}
+                                    <i class="bi bi-file-play"></i>
+                                    {% elif file.mimetype.startswith('audio/') %}
+                                    <i class="bi bi-file-music"></i>
+                                    {% elif file.mimetype == 'application/pdf' %}
+                                    <i class="bi bi-file-pdf"></i>
+                                    {% elif 'spreadsheet' in file.mimetype or 'excel' in file.mimetype %}
+                                    <i class="bi bi-file-spreadsheet"></i>
+                                    {% elif 'document' in file.mimetype or 'word' in file.mimetype %}
+                                    <i class="bi bi-file-word"></i>
+                                    {% else %}
+                                    <i class="bi bi-file-earmark"></i>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td title="{{ file.original_filename }}">{{ file.original_filename }}</td>
+                            <td>{{ (file.size / 1024)|round(1) }} KB</td>
+                            <td>{{ file.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <div class="d-flex">
+                                    <a href="{{ url_for('drive.download', file_id=file.id, original_filename=file.original_filename) }}"
+                                        class="btn btn-sm btn-outline-primary me-2">Download</a>
+                                    <form
+                                        action="{{ url_for('drive.delete', file_id=file.id, original_filename=file.original_filename) }}"
+                                        method="post"
+                                        onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <div class="display-1 text-muted mb-3">
+                <i class="bi bi-cloud-upload"></i>
+            </div>
+            <h2 class="text-muted">No files uploaded yet</h2>
+            <p class="lead">Upload your first file to get started</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css">
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const cardViewBtn = document.getElementById('cardViewBtn');
+            const tableViewBtn = document.getElementById('tableViewBtn');
+            const cardView = document.getElementById('cardView');
+            const tableView = document.getElementById('tableView');
+
+            cardViewBtn.addEventListener('click', function () {
+                cardView.style.display = 'flex';
+                tableView.style.display = 'none';
+                cardViewBtn.classList.add('active');
+                tableViewBtn.classList.remove('active');
+            });
+
+            tableViewBtn.addEventListener('click', function () {
+                cardView.style.display = 'none';
+                tableView.style.display = 'block';
+                tableViewBtn.classList.add('active');
+                cardViewBtn.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+
+</html>
