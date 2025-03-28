@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <div class="fs-4">Login to Your Account</div>
+                </div>
+                <div class="card-body">
+                    <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}" novalidate>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="invalid-feedback">
+                                Please enter a valid email address.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback">
+                                Password is required.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p>
+                            <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">Forgot Password?</a>
+                        </p>
+                        <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('loginForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const togglePasswordButtons = document.querySelectorAll('.toggle-password');
+    const loginButton = form.querySelector('button[type="submit"]');
+
+    // Disable login button by default
+    loginButton.disabled = true;
+
+    // Password visibility toggle
+    togglePasswordButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            input.type = input.type === 'password' ? 'text' : 'password';
+            
+            // Toggle eye icon
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+    });
+
+    // Track if user has started typing
+    const inputStates = {
+        email: false,
+        password: false
+    };
+
+    // Client-side validation
+    function validateForm() {
+        let isValid = true;
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailValid = emailRegex.test(emailInput.value);
+        if (inputStates.email) {
+            if (!emailValid) {
+                emailInput.classList.remove('is-valid');
+                emailInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                emailInput.classList.remove('is-invalid');
+                emailInput.classList.add('is-valid');
+            }
+        }
+
+        // Password validation
+        const passwordValid = passwordInput.value.length > 0;
+        if (inputStates.password) {
+            if (!passwordValid) {
+                passwordInput.classList.remove('is-valid');
+                passwordInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                passwordInput.classList.remove('is-invalid');
+                passwordInput.classList.add('is-valid');
+            }
+        }
+
+        // Enable/disable login button based on form validity
+        loginButton.disabled = !(emailValid && passwordValid);
+
+        return isValid;
+    }
+
+    // Real-time validation with input tracking
+    emailInput.addEventListener('input', function() {
+        inputStates.email = true;
+        validateForm();
+    });
+
+    passwordInput.addEventListener('input', function() {
+        inputStates.password = true;
+        validateForm();
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(event) {
+        // Force validation states
+        inputStates.email = true;
+        inputStates.password = true;
+        
+        if (!validateForm()) {
+            event.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

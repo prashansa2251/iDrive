@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <div class="fs-4">Register Yourself</div>
+                </div>
+                <div class="card-body">
+                    <form id="registerForm" method="POST" action="{{ url_for('auth.register') }}" novalidate>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required 
+                                   minlength="4" maxlength="20">
+                            <div class="invalid-feedback">
+                                Username must be 4-20 characters long.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="invalid-feedback">
+                                Please enter a valid email address.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       required minlength="8" maxlength="50">
+                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback">
+                                Password must be at least 8 characters long.
+                            </div>
+                            <small class="form-text text-muted">
+                                Password must be 8-50 characters long.
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Confirm Password</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirm_password" 
+                                       name="confirm_password" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="confirm_password_feedback">
+                                Passwords do not match.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Register</button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const togglePasswordButtons = document.querySelectorAll('.toggle-password');
+    const registerButton = form.querySelector('button[type="submit"]');
+
+    // Disable register button by default
+    registerButton.disabled = true;
+
+    // Password visibility toggle
+    togglePasswordButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            input.type = input.type === 'password' ? 'text' : 'password';
+            
+            // Toggle eye icon
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+    });
+
+    // Track if user has started typing
+    const inputStates = {
+        username: false,
+        email: false,
+        password: false,
+        confirmPassword: false
+    };
+
+    // Client-side validation
+    function validateForm() {
+        let isValid = true;
+
+        // Username validation
+        const usernameValid = form.username.value.length >= 4 && form.username.value.length <= 20;
+        if (inputStates.username) {
+            if (!usernameValid) {
+                form.username.classList.remove('is-valid');
+                form.username.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                form.username.classList.remove('is-invalid');
+                form.username.classList.add('is-valid');
+            }
+        }
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailValid = emailRegex.test(form.email.value);
+        if (inputStates.email) {
+            if (!emailValid) {
+                form.email.classList.remove('is-valid');
+                form.email.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                form.email.classList.remove('is-invalid');
+                form.email.classList.add('is-valid');
+            }
+        }
+
+        // Password validation
+        const passwordValid = form.password.value.length >= 8 && form.password.value.length <= 50;
+        if (inputStates.password) {
+            if (!passwordValid) {
+                form.password.classList.remove('is-valid');
+                form.password.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                form.password.classList.remove('is-invalid');
+                form.password.classList.add('is-valid');
+            }
+        }
+
+        // Confirm password validation
+        const passwordsMatch = form.password.value === form.confirm_password.value && form.confirm_password.value.length > 0;
+        if (inputStates.confirmPassword) {
+            if (!passwordsMatch) {
+                form.confirm_password.classList.remove('is-valid');
+                form.confirm_password.classList.add('is-invalid');
+                document.getElementById('confirm_password_feedback').textContent = 'Passwords do not match.';
+                isValid = false;
+            } else {
+                form.confirm_password.classList.remove('is-invalid');
+                form.confirm_password.classList.add('is-valid');
+            }
+        }
+
+        // Enable/disable register button based on overall form validity
+        const allFieldsValid = usernameValid && emailValid && passwordValid && passwordsMatch;
+        registerButton.disabled = !allFieldsValid;
+
+        return isValid;
+    }
+
+    // Real-time validation with input tracking
+    form.username.addEventListener('input', function() {
+        inputStates.username = true;
+        validateForm();
+    });
+
+    form.email.addEventListener('input', function() {
+        inputStates.email = true;
+        validateForm();
+    });
+
+    form.password.addEventListener('input', function() {
+        inputStates.password = true;
+        validateForm();
+    });
+
+    form.confirm_password.addEventListener('input', function() {
+        inputStates.confirmPassword = true;
+        validateForm();
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(event) {
+        // Force validation states
+        Object.keys(inputStates).forEach(key => {
+            inputStates[key] = true;
+        });
+        
+        if (!validateForm()) {
+            event.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

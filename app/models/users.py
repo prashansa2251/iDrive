@@ -3,6 +3,8 @@ from sqlalchemy import ARRAY, case, func
 from app.db import db
 from passlib.hash import pbkdf2_sha256
 
+from app.models.user_config import UserConfig
+
 
 
 class User(UserMixin, db.Model):
@@ -46,8 +48,8 @@ class User(UserMixin, db.Model):
 
 
     @classmethod
-    def find_by_username(cls, username):
-        return cls.query.filter_by(username=username).first()
+    def find_by_email(cls, email):
+        return cls.query.filter_by(email=email).first()
     
     @classmethod
     def get_all(cls):
@@ -55,7 +57,9 @@ class User(UserMixin, db.Model):
             cls.id, 
             cls.username,
             cls.isActive,
-            cls.email
+            cls.email,
+            UserConfig.max_size
+        ).join(UserConfig, cls.id == UserConfig.user_id
         ).order_by(cls.id)
         
         results = query.all()
@@ -64,8 +68,9 @@ class User(UserMixin, db.Model):
             json_data = [{
                 'id': item.id,
                 'username': item.username,
-                'isActive': item.isActive,
+                'is_active': item.isActive,
                 'email':item.email,
+                'storage_volume': item.max_size
             } for item in results]
             
         
@@ -94,4 +99,11 @@ class User(UserMixin, db.Model):
             'active_users': counts.active_users,
             'inactive_users': counts.inactive_users
         }
+    
+    @classmethod
+    def toggle_user_status(cls,user_id):
+        user = cls.query.filter_by(id=user_id).first()
+        user.isActive = not user.isActive
+        user.update_db()
+        return True
     

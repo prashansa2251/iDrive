@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, get_flashed_messages, json, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
+from app.models.user_config import UserConfig
 from app.models.users import User
 
 blp = Blueprint("auth","auth")
@@ -19,23 +20,21 @@ def register():
         username = request.form.get('username')
         password = request.form.get('password')
         email = request.form.get('email')
-        confirm_password = request.form.get('confirmPassword')
-        user = User.find_by_username(username.lower())
+        user = User.find_by_email(email.lower())
         if user:
-            flash('username already exists!')
-            return redirect(url_for('auth.register'))
-        
-        if password != confirm_password:
-            flash('Passwords do not match!')
+            flash('Email already registered!')
             return redirect(url_for('auth.register'))
 
         user = User(username,email.lower(),password,False,False)
         user.set_password(password)
         user.save_to_db()
-
+        user = User.find_by_email(email.lower())
+        folder_name = str(user.id)+'_'+user.username.lower().replace(' ','_')
+        user_config = UserConfig(folder_name,0.0,user.id)
+        user_config.save_to_db()
         flash('Registered successfully!')
         return redirect(url_for('auth.login'))
-    return render_template("auth/register_user.html", 
+    return render_template("auth/register.html", 
                            flash_message=message)
 
 @blp.route('/login', methods=['POST','GET'])
@@ -47,7 +46,8 @@ def login():
             user = User.query.filter_by(email=email.lower()).first()
             if user and User.check_password(user, password) and user.isActive:
                 login_user(user)
-                return redirect(url_for('mobile.index'))
+                
+                return redirect(url_for('drive.index'))
             elif user is None:
                 flash('User does not exist!')
             elif not User.check_password(user, password):
@@ -135,9 +135,9 @@ def reset_password():
                            user_data=json.dumps(users))
     
 
-@blp.route('/approve', methods=['POST','GET'])
+@blp.route('/manage_users', methods=['POST','GET'])
 @login_required
-def approve():
+def manage_users():
     if request.method =='POST':
         json_data = request.json
         for item in json_data:
@@ -146,15 +146,50 @@ def approve():
                 user_object.isActive = bool(item['isActive'])
                 user_object.update_db()
         flash("The user(s) is/are approved!!")
-        return jsonify({'redirect_url': url_for('mobile.index')})
+        return jsonify({'redirect_url': url_for('drive.index')})
     if current_user.isAdmin:
         users = User.get_all()
         # states = State.get_all()
         message = get_message()
-        return render_template('auth/approve.html',
+        return render_template('auth/manage_users.html',
                             flash_message = message,
                             users=users,
                             user_data=json.dumps(users))
     else: 
         flash('You must be admin to view this page!')
         return redirect(url_for('auth.login'))
+    
+@blp.route('/update_storage',methods=['POST','GET'])
+@login_required
+def update_storage():
+    if current_user.is_authenticated:
+        if current_user.isAdmin:
+            if request.method=='POST':
+                json_data = request.json
+                user_update = UserConfig.update_storage(json_data['user_id'],json_data['storage_volume'])
+                if user_update:
+                    return jsonify({'response':True})
+                else:
+                    return jsonify({'response':False})
+        flash('You must be admin to view this page!')
+        return redirect(url_for('auth.login'))
+    flash('You must be logged in to view this page!')
+    return redirect(url_for('auth.login'))
+
+@blp.route('/toggle_user_status',methods=['POST','GET'])
+@login_required
+def toggle_user_status():
+    if current_user.is_authenticated:
+        if current_user.isAdmin:
+            if request.method=='POST':
+                json_data = request.json
+                user_update = User.toggle_user_status(json_data['user_id'])
+                if user_update:
+                    return jsonify({'response':True})
+                else:
+                    return jsonify({'response':False})
+        flash('You must be admin to view this page!')
+        return redirect(url_for('auth.login'))
+    flash('You must be logged in to view this page!')
+    return redirect(url_for('auth.login'))
+
