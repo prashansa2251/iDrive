@@ -15,6 +15,66 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="icon" type="image/png" href="{{url_for('static', filename='assets/touch-icon.png')}}">
     <style>
+        /* Full-screen overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1050;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #loading-wrapper {
+            text-align: center;
+            color: white;
+        }
+
+        /* Dots bouncing animation */
+        .dots-loader span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin: 3px;
+            background: white;
+            border-radius: 50%;
+            animation: bounce 1.5s infinite ease-in-out;
+        }
+
+        .dots-loader span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .dots-loader span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dots-loader span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* Initially hidden */
+        .d-none {
+            display: none;
+        }
+
         .file-card {
             transition: transform 0.3s ease;
         }
@@ -32,18 +92,21 @@
         .view-toggle {
             margin-bottom: 20px;
         }
+
         .fs-7 {
-    font-size: 0.85rem !important;
-}
-.fs-8 {
-    font-size: 0.75rem !important;
-}
+            font-size: 0.85rem !important;
+        }
+
+        .fs-8 {
+            font-size: 0.75rem !important;
+        }
     </style>
     {%block css%}
     {%endblock%}
 </head>
 
-<body>
+<body class="vh-100">
+
     <nav class="navbar fixed-top bg-primary justify-content-between py-2">
         <div class="row w-100">
             <div class="col">
@@ -54,9 +117,9 @@
             </div>
 
             <div class="col-2 px-0 ">
-                <div class="btn-toolbar justify-content-end" role="toolbar" aria-label="Toolbar with button groups">
+                <div class="btn-toolbar justify-content-end gap-2" role="toolbar" aria-label="Toolbar with button groups">
                     <div class="btn-group mr-2" role="group" aria-label="First group">
-                        <button class="btn text-white dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <button class="btn text-white dropdown-toggle no-loader" type="button" data-bs-toggle="dropdown">
                             <i class="fa-solid fa-user fa-xl"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
@@ -71,35 +134,38 @@
                                 href="{{url_for('auth.change_password')}}">
                                 <i class="fa-solid fa-user-pen"></i>&nbsp;Change Password
                             </a>
-                            <a href="{{url_for('auth.logout')}}" class="list-group-item list-group-item-action p-3 loader fs-6">
+                            <a href="{{url_for('auth.logout')}}"
+                                class="list-group-item list-group-item-action p-3 loader fs-6">
                                 <i class="fa-solid fa-user-lock"></i>&nbsp;Logout
                             </a>
                             {% else %}
-                            <a href="{{url_for('auth.login')}}" class="list-group-item list-group-item-action p-3 loader fs-6">
+                            <a href="{{url_for('auth.login')}}"
+                                class="list-group-item list-group-item-action p-3 loader fs-6">
                                 <i class="fa-solid fa-user-check"></i>&nbsp;Login
                             </a>
-                            <a href="{{url_for('auth.register')}}" class="list-group-item list-group-item-action p-3 loader fs-6">
+                            <a href="{{url_for('auth.register')}}"
+                                class="list-group-item list-group-item-action p-3 loader fs-6">
                                 <i class="fa-solid fa-user-plus"></i>&nbsp;Register
                             </a>
                             {% endif %}
-        
+
                         </ul>
                     </div>
                     <div class="btn-group mr-2" role="group" aria-label="Second group">
-                        <button class="btn text-white border border-light" type="button" data-bs-toggle="offcanvas"
+                        <button class="btn text-white border border-light no-loader" type="button" data-bs-toggle="offcanvas"
                             data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                             <i class="fa-solid fa-bars fa-xl"></i>
                         </button>
                     </div>
                 </div>
-                
+
             </div>
         </div>
         <div class="offcanvas offcanvas-end" data-bs-scroll="true" tabindex="-1" id="offcanvasMenu"
             aria-labelledby="offcanvasMenu">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasMenuLabel"><i></i>&nbsp;iDrive</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                <button type="button" class="btn-close no-loader" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
                 <p><strong>Menu</strong></p>
@@ -125,44 +191,70 @@
             </div>
         </div>
     </nav>
-    
+    <!-- Loader -->
+    <div id="loading-spinner" class="overlay d-none">
+        <div id="loading-wrapper">
+            <div id="loading-text" class="fw-bold mb-2">{%if home_page%}GETTING YOUR FILES{%else%}LOADING{%endif%}</div>
+            <div class="dots-loader">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+    </div>
     <div class="toast-container position-fixed bottom-0 end-0 p-3 mb-6">
         <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-          <div class="toast-header bg-primary text-white">
-            <span class="me-2"><i class="fa-solid fa-hard-drive"></i></span>
-            <strong class="me-auto">iDrive</strong>
-            <small></small>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-          </div>
-          <div class="toast-body" id="flashMesssageDiv">
-            {% if flash_message %}
-            {{flash_message[0]}}
-            {% endif %} 
-          </div>
+            <div class="toast-header bg-primary text-white">
+                <span class="me-2"><i class="fa-solid fa-hard-drive"></i></span>
+                <strong class="me-auto">iDrive</strong>
+                <small></small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="flashMesssageDiv">
+                {% if flash_message %}
+                {{flash_message[0]}}
+                {% endif %}
+            </div>
         </div>
-      </div> 
-      
-    <div class="container-fluid p-3 mt-5">
+    </div>
+
+    <div class="container-fluid p-3 mt-5 h-100">
         {%block content%}
         {%endblock%}
     </div>
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.10.2/umd/popper.min.js" integrity="sha512-nnzkI2u2Dy6HMnzMIkh7CPd1KX445z38XIu4jG1jGw7x5tSL3VBjE44dY4ihMU1ijAQV930SPM12cCFrB18sVw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.10.2/umd/popper.min.js"
+        integrity="sha512-nnzkI2u2Dy6HMnzMIkh7CPd1KX445z38XIu4jG1jGw7x5tSL3VBjE44dY4ihMU1ijAQV930SPM12cCFrB18sVw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         // toggle toast
         const toastDiv = document.getElementById('liveToast');
         const flash_message = document.getElementById('flashMesssageDiv')
-        if (flash_message){
-                if (flash_message.innerText.trim() !== 'false' && flash_message.innerText.trim() !== '') {
+        if (flash_message) {
+            if (flash_message.innerText.trim() !== 'false' && flash_message.innerText.trim() !== '') {
                 const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastDiv);
                 toastBootstrap.show();
             }
         }
+        function toggleSpinner() {
+            const spinner = document.getElementById('loading-spinner');
+            spinner.classList.toggle('d-none');
+        }
+        document.addEventListener("DOMContentLoaded", function () {
+    // Select all <button> and <a> elements
+    document.querySelectorAll("button, a").forEach(element => {
+        element.addEventListener("click", function (event) {
+            // Check if the element has the 'no-loader' class
+            if (!this.classList.contains("no-loader")) {
+                toggleSpinner();
+            }
+        });
+    });
+});
     </script>
-    
+
     {%block scripts%}
     {%endblock%}
 </body>

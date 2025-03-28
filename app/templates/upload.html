@@ -1,253 +1,337 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Upload Overlay</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .file-drop-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: none;
-            z-index: 1050;
-            backdrop-filter: blur(5px);
-        }
+{% extends 'base.html' %}
+{%block title%}Upload Files{%endblock%}
+{%block css%}
+<style>
+    #dropArea {
+        border: 2px dashed #ccc;
+        border-radius: 20px;
+        width: 100%;
+        font-family: sans-serif;
+        padding: 20px;
+        text-align: center;
+        transition: height 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 95%;
+    }
+    #dropArea.highlight {
+        border-color: purple;
+    }
+    #file-list {
+        margin-top: 20px;
+    }
+    .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    #file-input {
+        display: none;
+    }
+    .upload-progress-item {
+        margin-bottom: 15px;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 5px;
+    }
+    .upload-progress-bar {
+        background-color: #f0f0f0;
+        height: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .upload-progress-bar-fill {
+        background-color: #4CAF50;
+        height: 100%;
+        width: 0;
+        border-radius: 5px;
+        transition: width 0.5s ease;
+    }
+</style>
+{%endblock%}
 
-        .file-drop-card {
-            max-width: 600px;
-            margin: 10% auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .file-drop-area {
-            border: 2px dashed #6c757d;
-            border-radius: 20px;
-            padding: 40px 20px;
-            text-align: center;
-            transition: background-color 0.3s ease;
-        }
-
-        .file-drop-area.dragover {
-            background-color: rgba(0, 123, 255, 0.1);
-            border-color: #007bff;
-        }
-
-        #fileList {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .file-upload-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            position: relative;
-        }
-
-        .upload-progress-card {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 350px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            z-index: 1100;
-            padding: 15px;
-        }
-
-        .upload-progress-item {
-            margin-bottom: 10px;
-            position: relative;
-        }
-
-        .upload-progress-bar {
-            height: 5px;
-            background-color: #e9ecef;
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-
-        .upload-progress-bar-fill {
-            height: 100%;
-            background-color: #28a745;
-            width: 0%;
-            transition: width 0.5s ease;
-        }
-
-        .upload-details {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h1 class="display-4">Simple Drive</h1>
-                <p class="lead text-muted">Upload, download, and manage your files</p>
+{% block content %}
+<div class="container-fluid h-100">
+    <div id="dropArea" class="d-flex flex-column">
+        <div class="text-center justify-content-center h-100 w-100 d-grid">
+            <div class="display-1 text-muted mb-3 justify-content-center d-flex align-items-end">
+                <i class="bi bi-cloud-upload"></i>
             </div>
-            <div class="col-md-4 d-flex align-items-center justify-content-end">
-                <button id="showUploadOverlay" class="btn btn-primary">Upload Files</button>
+            <div class="text">
+                <p class="lead">Drag and Drop files or Click to select</p>
+            <a type="button" class="btn btn-outline-info" href="/" id="backToIndex">
+                Back to Files
+            </a>
             </div>
+            
         </div>
-
-        <div id="fileDropOverlay" class="file-drop-overlay">
-            <div class="file-drop-card card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Upload Files</h5>
-                    <button id="closeOverlay" class="btn-close" aria-label="Close"></button>
-                </div>
-                <div class="card-body">
-                    <div id="dropArea" class="file-drop-area">
-                        <p class="text-muted mb-3">Drag and drop files here or click to select</p>
-                        <input type="file" id="fileInput" multiple class="form-control" style="display:none;">
-                        <button id="selectFiles" class="btn btn-outline-primary">Select Files</button>
-                    </div>
-                    
-                    <div id="fileList" class="mt-3">
-                        <!-- Selected files will be listed here -->
-                    </div>
-
-                    <div class="mt-3 d-flex justify-content-end">
-                        <button id="uploadFiles" class="btn btn-primary">Upload Files</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="uploadProgressCard" class="upload-progress-card" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0">Upload Progress</h6>
-                <button id="cancelUpload" class="btn btn-sm btn-outline-danger">&times;</button>
-            </div>
-            <div id="uploadProgressList">
-                <!-- Upload progress items will be added here -->
-            </div>
-        </div>
+        <input type="file" id="fileInput" multiple style="display: none;">
     </div>
+    <div class="text-danger text-center mt-3 d-none" id="warning-text">
+        <span><i class="fa-solid fa-triangle-exclamation"></i> Please Do not close this page until upload completes.</span>
+    </div>
+    <div id="file-list" class="mt-3"></div>
+    
+    <div class="mt-3 d-flex justify-content-center">
+        <button id="uploadFiles" class="btn btn-primary" style="display: none;">Upload Files</button>
+        <button id="showFiles" class="btn btn-success ml-2" style="display: none;"></button>
+        <button id="cancelFiles" class="btn btn-danger ml-2" style="display: none;">Cancel</button>
+    </div>
+</div>
+{%endblock%}
 
-    <!-- Socket.IO Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
+{%block scripts%}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
     // Initialize Socket.IO connection
     const socket = io();
 
     // Get all required DOM elements
-    const fileDropOverlay = document.getElementById('fileDropOverlay');
     const dropArea = document.getElementById('dropArea');
     const fileInput = document.getElementById('fileInput');
-    const selectFilesBtn = document.getElementById('selectFiles');
-    const showUploadOverlay = document.getElementById('showUploadOverlay');
-    const closeOverlay = document.getElementById('closeOverlay');
-    const fileList = document.getElementById('fileList');
+    const fileList = document.getElementById('file-list');
     const uploadFiles = document.getElementById('uploadFiles');
-    const uploadProgressCard = document.getElementById('uploadProgressCard');
-    const uploadProgressList = document.getElementById('uploadProgressList');
-    const cancelUploadBtn = document.getElementById('cancelUpload');
-
+    const showFiles = document.getElementById('showFiles');
+    const warningText = document.getElementById('warning-text');
+    const cancelFiles = document.getElementById('cancelFiles');
+    const backToIndex = document.getEleementById('backToIndex');
+    // File management
     let fileQueue = [];
     let filenameMap = {}; // Maps both UUID and original filename to their counterparts
     let isUploading = false;
+    let isCancelled = false;
 
-    // Show file upload overlay
-    showUploadOverlay.addEventListener('click', function() {
-        fileDropOverlay.style.display = 'block';
+   // Prevent default dragging behaviors
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+// Highlight drop area when item is dragged over
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropArea.classList.add('highlight');
+}
+
+function unhighlight(e) {
+    dropArea.classList.remove('highlight');
+}
+
+// Handle dropped files
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+// Handle file selection
+function handleFileSelection(e) {
+    const files = e.target.files;
+    handleFiles(files);
+}
+
+function handleFiles(files) {
+    // Your file handling logic here
+    // For example, upload files, show preview, etc.
+    console.log(files);
+}
+
+// Drop event
+dropArea.addEventListener('drop', handleDrop);
+
+// Prevent drop area from interfering with back button
+backToIndex.addEventListener('click', (e) => {
+    // Ensure the default link behavior is not prevented
+    // and file input is not triggered
+    e.stopPropagation();
+});
+
+// Click to select files (only when clicking on drop area)
+dropArea.addEventListener('click', (e) => {
+    // Check if the click target is not the back button
+    if (!e.target.closest('#backToIndex')) {
+        fileInput.click();
+    }
+});
+
+// File input change event
+fileInput.addEventListener('change', handleFileSelection);
+
+    // Show Files button
+    showFiles.addEventListener('click', () => {
+        window.location.href = '/'; // Redirect to index page
     });
 
-    // Close file upload overlay
-    closeOverlay.addEventListener('click', function() {
-        fileDropOverlay.style.display = 'none';
-        resetFileSelection();
+    cancelFiles.addEventListener('click', function () {
+            const sid = socket.id;
+                // File is uploading - send cancel request
+                showFiles.style.display = 'none';
+                isCancelled = true;
+                cancelUpload(sid);
+                
     });
 
-    // Cancel entire upload
-    cancelUploadBtn.addEventListener('click', function() {
-        fileQueue = [];
-        isUploading = false;
-        uploadProgressCard.style.display = 'none';
-        resetFileSelection();
-    });
-
-    function resetFileSelection() {
-        fileInput.value = '';
-        fileList.innerHTML = '';
-        uploadProgressList.innerHTML = '';
+    function cancelUpload(sid) {
+        fetch(`/cancel_upload/${sid}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message === 'Upload cancelled successfully') {
+                window.location.href = '/'; // Redirect to index page
+            }
+        })
+        .catch(error => {
+            console.error('Cancel upload error:', error);
+        });
     }
 
-    selectFilesBtn.addEventListener('click', function() {
-        fileInput.click();
+    // Listen for upload cancellation events
+    socket.on('upload_cancelled', function(data) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-sid="${data.sid}"]`);
+        
+        if (progressItem) {
+            const statusEl = progressItem.querySelector('.upload-status');
+            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
+            
+            statusEl.textContent = 'Cancelled';
+            statusEl.classList.replace('text-primary', 'text-danger');
+            progressBar.style.width = '0%';
+            
+            // Disable cancel button
+            progressItem.querySelector('.cancel-upload').disabled = true;
+        }
     });
 
-    fileInput.addEventListener('change', function(e) {
-        addFiles(e.target.files);
-    });
+
+    function handleDrop(e) {
+        const files = e.dataTransfer.files;
+        addFiles(files);
+    }
+
+    function handleFileSelection(e) {
+        const files = e.target.files;
+        addFiles(files);
+    }
 
     function addFiles(files) {
         Array.from(files).forEach(file => {
             if (!fileQueue.some(qFile => qFile.name === file.name)) {
                 fileQueue.push(file);
-                createProgressItem(file, "Pending");
+                createProgressItem(file);
             }
         });
 
-        uploadProgressCard.style.display = 'block';
+        // Shrink drop area
+        dropArea.style.height = '60%';
+
+        // Show upload button
+        uploadFiles.style.display = fileQueue.length > 0 ? 'block' : 'none';
     }
 
-    function createProgressItem(file, status = "Pending") {
+    function createProgressItem(file) {
         const progressItem = document.createElement('div');
         progressItem.classList.add('upload-progress-item');
-        progressItem.dataset.filename = file.name; // Store original filename
+        progressItem.dataset.filename = file.name;
+        progressItem.dataset.sid = socket.id;
 
         progressItem.innerHTML = `
+            <div class="row">
+                <div class="col">
             <div class="d-flex justify-content-between mb-1">
                 <span>${file.name}</span>
-                <span class="upload-status text-warning">${status}</span>
+                <span class="upload-status fw-semibold text-warning">Pending</span>
             </div>
             <div class="upload-progress-bar">
                 <div class="upload-progress-bar-fill"></div>
             </div>
-            <div class="upload-details">
-                <span class="upload-eta">--:--</span>
-                <span class="upload-speed">0 KB/s</span>
+            <div class="upload-details d-flex justify-content-between">
+                <span class='text-muted fs-8'>
+                    <span class="upload-speed">0 KB/s</span>
+                    <span>( Time Remaining: </span>
+                    <span class="upload-eta">--:--</span>
+                    <span>)</span>
+                </span>
+                <span class='text-muted fs-8'>
+                <span>Uploaded: </span>
+                <span class="uploaded-size">0 KB</span>
+                <span> / </span>
                 <span>${formatFileSize(file.size)}</span>
+                </span>
+                
             </div>
-            <button class="btn btn-sm btn-outline-danger cancel-file">Cancel</button>
+            </div>
+            <div class="col-auto d-flex justify-content-center align-items-center">
+            <button class="btn btn-sm btn-outline-danger delete-file"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+            </div>
         `;
 
-        uploadProgressList.appendChild(progressItem);
+        fileList.appendChild(progressItem);
 
-        progressItem.querySelector('.cancel-file').addEventListener('click', function() {
-            const statusEl = progressItem.querySelector('.upload-status');
-            statusEl.textContent = 'Cancelled';
-            statusEl.classList.replace('text-warning', 'text-danger');
-            console.log("File manually cancelled:", file.name);
+        // Delete file before upload
+        progressItem.querySelector('.delete-file').addEventListener('click', function () {
+            fileQueue = fileQueue.filter(f => f.name !== file.name);
+            fileList.removeChild(progressItem);
+
+            // Reset drop area if no files
+            if (fileQueue.length === 0) {
+                dropArea.style.height = '95%';
+                uploadFiles.style.display = 'none';
+            }
         });
     }
 
-    uploadFiles.addEventListener('click', function() {
+    // Upload button click handler
+    uploadFiles.addEventListener('click', function () {
         if (fileQueue.length > 0) {
-            fileDropOverlay.style.display = 'none';
+            warningText.classList.remove('d-none');
+            uploadFiles.disabled = true;
             processNextFile();
         }
     });
-
+    function redirectToIndex() {
+        let countdown = 3; // Timer in seconds
+        showFiles.textContent = `Redirecting to files in ${countdown}...`;
+        const interval = setInterval(() => {
+            countdown--;
+            showFiles.textContent = `Redirecting to files in ${countdown}...`;
+            if (countdown <= 0) {
+            clearInterval(interval);
+            window.location.href = '/';
+            }
+        }, 2000);
+    }
     function processNextFile() {
         if (fileQueue.length === 0) {
             isUploading = false;
+            if (isCancelled) {
+                uploadFiles.style.display = 'none';
+                showFiles.style.display = 'none';
+                return;
+            }
+            uploadFiles.style.display = 'none';
+            showFiles.style.display = 'block';
+            warningText.classList.add('d-none');
+            redirectToIndex();
             return;
         }
 
@@ -255,24 +339,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const file = fileQueue.shift();
         const progressItem = document.querySelector(`.upload-progress-item[data-filename="${file.name}"]`);
-        
+
         if (progressItem) {
             const statusEl = progressItem.querySelector('.upload-status');
-            if (statusEl.textContent === 'Cancelled') {
-                console.log("Skipping cancelled file:", file.name);
-                processNextFile();
-                return;
-            }
+            const deleteBtn = progressItem.querySelector('.delete-file');
 
-            statusEl.textContent = 'Uploading...';
-            statusEl.classList.replace('text-warning', 'text-primary');
+            
+            statusEl.textContent = '0%';
+            statusEl.classList.replace('text-warning', 'text-info');
+            deleteBtn.classList.add('d-none');
+            
+            // deleteBtn.classList.replace('btn-outline-danger', 'btn-outline-warning');
         }
 
         isUploading = true;
+        uploadFiles.textContent = 'Preparing...';
+        uploadFiles.disabled = true;
         uploadFile(file);
     }
 
     function uploadFile(file) {
+        
         const formData = new FormData();
         formData.append('file', file);
         formData.append('sid', socket.id);
@@ -284,13 +371,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.filename && data.original_name) {
-                // Bidirectional mapping
                 filenameMap[data.filename] = data.original_name;
                 filenameMap[data.original_name] = data.filename;
-                
-                console.log('Filename Mapping:', JSON.stringify(filenameMap, null, 2));
-            } else {
-                console.error("Filename mapping error:", data);
+                cancelFiles.style.display = 'block'; // Show cancel button
             }
         })
         .catch(error => {
@@ -298,110 +381,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    socket.on('upload_progress', function(data) {
-        console.log("Full Progress Data:", JSON.stringify(data, null, 2));
-
-        // Try multiple ways to find the original filename
-        const possibleFilenames = [
-            data.original_name,
-            data.filename,
-            filenameMap[data.filename],
-            filenameMap[data.original_name]
-        ].filter(Boolean); // Remove any undefined values
-
-        console.log("Trying Filenames:", possibleFilenames);
-
-        let progressItem = null;
-        for (let filename of possibleFilenames) {
-            progressItem = document.querySelector(`.upload-progress-item[data-filename="${filename}"]`);
-            if (progressItem) break;
-        }
-
+    // Socket event for upload progress
+    socket.on('upload_progress', function (data) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
+        
         if (progressItem) {
             const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
             const speedEl = progressItem.querySelector('.upload-speed');
             const etaEl = progressItem.querySelector('.upload-eta');
-
+            const uploadedSizeEl = progressItem.querySelector('.uploaded-size');
+            const statusEl = progressItem.querySelector('.upload-status');
+            uploadFiles.style.display = 'none';
+            cancelFiles.style.display = 'block';
+            showFiles.style.display = 'none';
             progressBar.style.width = `${data.progress}%`;
             speedEl.textContent = data.speed;
             etaEl.textContent = data.eta;
-        } else {
-            console.warn("Progress item not found. Existing Progress Items:", 
-                Array.from(document.querySelectorAll('.upload-progress-item'))
-                    .map(el => el.dataset.filename)
-            );
+            uploadedSizeEl.textContent = formatFileSize(data.uploaded_size);
+            statusEl.textContent = `${data.progress}%`;
+
         }
     });
 
-    socket.on('upload_complete', function(data) {
-        console.log("Upload complete:", data.filename);
-
-        // Try multiple ways to find the original filename
-        const possibleFilenames = [
-            data.original_name,
-            data.filename,
-            filenameMap[data.filename],
-            filenameMap[data.original_name]
-        ].filter(Boolean);
-
-        let originalFilename = null;
-        for (let filename of possibleFilenames) {
-            if (document.querySelector(`.upload-progress-item[data-filename="${filename}"]`)) {
-                originalFilename = filename;
-                break;
-            }
-        }
-
-        if (!originalFilename) {
-            console.warn("No original filename found for completed file:", data.filename);
-            return;
-        }
-
-        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${originalFilename}"]`);
-
+    // Socket event for upload complete
+    socket.on('upload_complete', function (data) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
+        
         if (progressItem) {
-            progressItem.classList.add('text-success');
             const statusEl = progressItem.querySelector('.upload-status');
+            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
+            const cancelBtn = progressItem.querySelector('.delete-file');
             statusEl.textContent = 'Completed';
-            statusEl.classList.replace('text-primary', 'text-success');
-
-            const etaEl = progressItem.querySelector('.upload-eta');
-            etaEl.textContent = 'Upload Complete';
+            statusEl.classList.replace('text-info', 'text-success');
+            progressBar.style.width = '100%';
+            cancelBtn.style.display = 'none';
         }
 
         isUploading = false;
         processNextFile();
     });
 
-    socket.on('upload_error', function(data) {
-        console.error("Upload error:", data);
+    // Socket event for upload error
+    socket.on('upload_error', function (data) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
+        
+        if (progressItem) {
+            const statusEl = progressItem.querySelector('.upload-status');
+            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
+            const cancelBtn = progressItem.querySelector('.delete-file');
 
-        // Try to find and update the corresponding progress item
-        const possibleFilenames = [
-            data.original_name,
-            data.filename,
-            filenameMap[data.filename],
-            filenameMap[data.original_name]
-        ].filter(Boolean);
-
-        let originalFilename = null;
-        for (let filename of possibleFilenames) {
-            if (document.querySelector(`.upload-progress-item[data-filename="${filename}"]`)) {
-                originalFilename = filename;
-                break;
-            }
-        }
-
-        if (originalFilename) {
-            const progressItem = document.querySelector(`.upload-progress-item[data-filename="${originalFilename}"]`);
-            if (progressItem) {
-                const statusEl = progressItem.querySelector('.upload-status');
-                statusEl.textContent = 'Error';
-                statusEl.classList.replace('text-primary', 'text-danger');
-
-                const etaEl = progressItem.querySelector('.upload-eta');
-                etaEl.textContent = data.error || 'Upload Failed';
-            }
+            statusEl.textContent = 'Error Uploading File !!';
+            statusEl.classList.replace('text-info', 'text-danger');
+            cancelBtn.style.display = 'none';
         }
 
         isUploading = false;
@@ -413,30 +444,6 @@ document.addEventListener('DOMContentLoaded', function() {
         else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
         else return (bytes / 1048576).toFixed(1) + ' MB';
     }
-
-    // Drag and Drop functionality
-    dropArea.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.classList.add('dragover');
-    });
-
-    dropArea.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.classList.remove('dragover');
-    });
-
-    dropArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        dropArea.classList.remove('dragover');
-
-        const files = e.dataTransfer.files;
-        addFiles(files);
-    });
 });
-        </script>
-        
-</body>
-</html>
+</script>
+{%endblock%}
