@@ -309,6 +309,7 @@ fileInput.addEventListener('change', handleFileSelection);
         }
     });
     function redirectToIndex() {
+        cancelFiles.style.display = 'none';
         let countdown = 3; // Timer in seconds
         showFiles.textContent = `Redirecting to files in ${countdown}...`;
         const interval = setInterval(() => {
