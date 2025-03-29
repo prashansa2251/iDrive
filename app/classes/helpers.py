@@ -1,4 +1,6 @@
 import os
+
+from flask import get_flashed_messages
 from app.models.user_config import UserConfig
 from datetime import datetime, timezone,timedelta
 
@@ -21,13 +23,17 @@ class HelperClass():
         return folder_name
     
     @classmethod
-    def format_file_size(cls,bytes):
+    def format_file_size(cls, bytes):
         if bytes < 1024:
             return f"{bytes} bytes"
-        elif bytes < 1048576:
+        elif bytes < 1048576:  # Less than 1 MB
             return f"{bytes / 1024:.1f} KB"
-        else:
+        elif bytes < 1073741824:  # Less than 1 GB
             return f"{bytes / 1048576:.1f} MB"
+        elif bytes < 1099511627776:  # Less than 1 TB
+            return f"{bytes / 1073741824:.2f} GB"
+        else:  # 1 TB or more
+            return f"{bytes / 1099511627776:.2f} TB"
     
     @classmethod
     def convert_to_ist(cls,dt):
@@ -61,3 +67,13 @@ class HelperClass():
             return datetime.strptime(item.get('upload_date', '1970-01-01 00:00 IST'), '%Y-%m-%d %H:%M IST')
         except ValueError:
             return datetime(1970, 1, 1, 0, 0)
+        
+    @classmethod
+    def get_message(cls):
+        messages = get_flashed_messages()
+        if len(messages) > 0:
+            message = messages[0]
+        else:
+            message = ''
+
+        return message

@@ -75,10 +75,10 @@
     </div>
     <div id="file-list" class="mt-3"></div>
     
-    <div class="mt-3 d-flex justify-content-center">
-        <button id="uploadFiles" class="btn btn-primary" style="display: none;">Upload Files</button>
-        <button id="showFiles" class="btn btn-success ml-2" style="display: none;"></button>
-        <button id="cancelFiles" class="btn btn-danger ml-2" style="display: none;">Cancel</button>
+    <div class="mt-3 d-flex justify-content-center gap-2">
+        <button id="uploadFiles" class="btn btn-primary no-loader" style="display: none;">Upload Files</button>
+        <button id="showFiles" class="btn btn-success ml-2 no-loader" style="display: none;"></button>
+        <button id="cancelFiles" class="btn btn-danger ml-2 no-loader" style="display: none;">Cancel</button>
     </div>
 </div>
 {%endblock%}
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const showFiles = document.getElementById('showFiles');
     const warningText = document.getElementById('warning-text');
     const cancelFiles = document.getElementById('cancelFiles');
-    const backToIndex = document.getEleementById('backToIndex');
+    const backToIndex = document.getElementById('backToIndex');
     // File management
     let fileQueue = [];
     let filenameMap = {}; // Maps both UUID and original filename to their counterparts

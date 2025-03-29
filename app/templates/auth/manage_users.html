@@ -55,7 +55,7 @@
                             </td>
                             <td>
                                 <div class="btn-group" role="group">
-                                    <button class="btn btn-sm btn-outline-primary storage-assign-btn" 
+                                    <button class="btn btn-sm btn-outline-primary storage-assign-btn no-loader" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#storageModal"
                                             data-user-id="{{ user.id }}"
@@ -86,7 +86,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Assign Storage</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close no-loader" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="storageAssignmentForm">
@@ -119,20 +119,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const rows = table.querySelectorAll('tbody tr');
 
     function filterTable() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const statusTerm = statusFilter.value;
+    const searchTerm = searchInput.value.toLowerCase();
+    const statusTerm = statusFilter.value.toLowerCase();
 
-        rows.forEach(row => {
-            const username = row.cells[0].textContent.toLowerCase();
-            const email = row.cells[1].textContent.toLowerCase();
-            const status = row.cells[3].textContent.toLowerCase();
+    rows.forEach(row => {
+        const username = row.cells[0].textContent.toLowerCase();
+        const email = row.cells[1].textContent.toLowerCase();
+        const statusElement = row.cells[3].querySelector('.badge'); // Ensure correct element
+        const statusText = statusElement ? statusElement.textContent.trim().toLowerCase() : ''; // Get text safely
 
-            const matchesSearch = username.includes(searchTerm) || email.includes(searchTerm);
-            const matchesStatus = statusTerm === '' || status.includes(statusTerm);
+        const matchesSearch = username.includes(searchTerm) || email.includes(searchTerm);
+        const matchesStatus = statusTerm === '' || 
+                              (statusTerm === 'active' && statusText === 'active') || 
+                              (statusTerm === 'inactive' && statusText === 'inactive');
 
-            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
-        });
-    }
+        row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+    });
+}
 
     searchInput.addEventListener('input', filterTable);
     statusFilter.addEventListener('change', filterTable);
@@ -180,13 +183,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 bootstrap.Modal.getInstance(storageModal).hide();
                 
                 // Show success toast
+                toggleSpinner();
                 showToast('Storage updated successfully !!');
             } else {
+                toggleSpinner();
                 showToast('Failed to update storage !!');
             }
         })
         .catch(error => {
             console.error('Error:', error);
+            toggleSpinner();
             showToast('An error occurred while updating storage');
         });
     });
@@ -209,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.response) {
+                    
                     // Update button and status badge
                     const row = this.closest('tr');
                     const statusBadge = row.cells[3].querySelector('.badge');
@@ -230,31 +237,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         this.classList.add('btn-outline-danger');
                         this.setAttribute('data-current-status', 'True');
                     }
-
+                    toggleSpinner();
                     showToast('User status updated successfully !!');
+
                 } else {
+                    toggleSpinner();
                     showToast('Failed to update user status !!');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                toggleSpinner();
                 showToast('An error occurred while updating user status');
             });
         });
     });
 
-    // Toast helper function
-    function showToast(message) {
-        const toastEl = document.getElementById('liveToast');
-        const toastBody = document.getElementById('flashMesssageDiv');
-        
-        toastBody.textContent = message;
-        toastEl.classList.remove('bg-success', 'bg-danger');
-        
-        
-        const toast = new bootstrap.Toast(toastEl);
-        toast.show();
-    }
 });
 </script>
 {% endblock %}

@@ -65,7 +65,7 @@
             <thead>
                 <tr>
                     <th class="text-center">Type</th>
-                    <th>Filename</th>
+                    <th>Name</th>
                     <th>Size</th>
                     <th>Last Modified</th>
                     <th>Actions</th>
@@ -101,8 +101,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const noFiles = document.getElementById('noFiles');
     const withFiles = document.getElementById('withFiles');
     const breadcrumb = document.getElementById('breadcrumb');
+    const searchInput = document.getElementById('searchInput');
 
     let currentPath = ''; // Tracks the current directory path
+    let allItems = []; // Store all items from current directory for filtering
 
     // Toggle Views (unchanged)
     cardViewBtn.addEventListener('click', function () {
@@ -122,6 +124,39 @@ document.addEventListener('DOMContentLoaded', function () {
         tableViewBtn.classList.add('text-primary');
         cardViewBtn.classList.remove('text-primary');
     });
+
+    // Search functionality
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+        filterItems(searchTerm);
+    });
+
+    function filterItems(searchTerm) {
+        if (!searchTerm) {
+            // If search is empty, show all items
+            updateCardView(allItems);
+            updateTableView(allItems);
+            return;
+        }
+
+        const filteredItems = allItems.filter(item => 
+            item.name.toLowerCase().includes(searchTerm)
+        );
+
+        // Update views with filtered items
+        updateCardView(filteredItems);
+        updateTableView(filteredItems);
+        
+        // Show/hide empty state
+        if (filteredItems.length === 0) {
+            cardView.innerHTML = `<div class="col-12 text-center py-5">
+                <p class="text-muted">No files matched your search</p>
+            </div>`;
+            tableView.querySelector('tbody').innerHTML = `<tr>
+                <td colspan="5" class="text-center py-4">No files matched your search</td>
+            </tr>`;
+        }
+    }
 
     // Fetch Directories & Files
     window.fetchFileList = function(folderPath = '') {
@@ -144,6 +179,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             currentPath = folderPath;
             updateBreadcrumb();
+            
+            // Clear search when navigating
+            searchInput.value = '';
+            
+            // Store all items for search filtering
+            allItems = data;
 
             if (data.length === 0) {
                 noFiles.classList.remove('d-none');
@@ -171,16 +212,16 @@ document.addEventListener('DOMContentLoaded', function () {
         breadcrumb.innerHTML = `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('')">Home</a></li>`;
 
         parts.forEach((part, index) => {
-            pathSoFar += (index > 0 ? '/' : '') + part;
+
+            let foldername = part.split('_').slice(1).join('_');
+            pathSoFar += (index > 0 ? '/' : '') + foldername;
             if (index === parts.length - 1) {
-                breadcrumb.innerHTML += `<li class="breadcrumb-item active">${part}</li>`;
+                breadcrumb.innerHTML += `<li class="breadcrumb-item active">${formatFolderName(foldername)}</li>`;
             } else {
                 breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${pathSoFar}')">${part}</a></li>`;
             }
         });
-
     }
-
 
     // Update Card View
     function updateCardView(items) {
@@ -192,11 +233,11 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="col">
                 <div class="card h-100 file-card ${item.is_directory ? 'directory-item' : ''}">
                     <div class="card-body text-center">
-                        <div class="file-icon fs-1 mb-3">${item.is_directory ? '📁' : getFileIcon(item.mimetype)}</div>
-                        <h5 class="card-title text-truncate" title="${item.name}">
-                            ${item.name}
+                        <div class="file-icon fs-1 mb-3">${item.is_directory ? '<i class="bi bi-folder"></i>' : getFileIcon(item.original_filename)}</div>
+                        <h5 class="card-title text-truncate" title="${item.is_directory ? formatFolderName(item.name) : item.name}">
+                            ${item.is_directory ? formatFolderName(item.name) : item.name}
                         </h5>
-                        <p class="card-text text-muted">${item.is_directory ? 'Folder' : item.size}</p>
+                        <p class="card-text text-muted">${item.size}</p>
                         <p class="card-text text-muted small">${item.upload_date || ''}</p>
                         ${item.is_directory ? `
                             <div class="mt-3 d-flex justify-content-center">
@@ -204,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             </div>
                         ` : `
                             <div class="mt-3 d-flex justify-content-center gap-2">
-                                <a href="/download/${item.path}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">Download</a>
-                                <button onclick="event.stopPropagation(); deleteFile('${item.path}')" class="btn btn-sm btn-outline-danger">Delete</button>
+                                <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary" onclick="handleDownload(event,this);">Download</a>
+                                <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger">Delete</button>
                             </div>
                         `}
                     </div>
@@ -224,17 +265,17 @@ document.addEventListener('DOMContentLoaded', function () {
         items.forEach(item => {
             let rowHTML = `
             <tr>
-                <td class="text-center fs-4">${item.is_directory ? '📁' : getFileIcon(item.mimetype)}</td>
-                <td>${item.name}</td>
-                <td>${item.is_directory ? 'Folder' : item.size}</td>
+                <td class="text-center fs-4">${item.is_directory ? '<i class="bi bi-folder"></i>' : getFileIcon(item.original_filename)}</td>
+                <td>${item.is_directory ? formatFolderName(item.name) : item.name}</td>
+                <td>${item.size}</td>
                 <td>${item.upload_date || ''}</td>
                 <td>
                     ${item.is_directory ? `
                         <button onclick="fetchFileList('${item.path}')" class="btn btn-sm btn-outline-primary">Open Folder</button>
                     ` : `
                         <div class="d-flex gap-2">
-                            <a href="/download/${item.path}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation()">Download</a>
-                            <button onclick="event.stopPropagation(); deleteFile('${item.path}')" class="btn btn-sm btn-outline-danger">Delete</button>
+                            <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary" onclick="handleDownload(event,this);">Download</a>
+                            <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger">Delete</button>
                         </div>
                     `}
                 </td>
@@ -243,46 +284,97 @@ document.addEventListener('DOMContentLoaded', function () {
             tableBody.innerHTML += rowHTML;
         });
     }
+    window.handleDownload = function(event, button) {
+    toggleSpinner();
+    event.stopPropagation(); // Prevent parent click events
 
-    // Removed handleItemClick function as it's no longer needed
+    // Wait for ~2 seconds (simulate download start)
+    setTimeout(() => {
+        toggleSpinner();
+    }, 2000);
+}
 
-    // Delete File Function (placeholder - implement actual deletion logic)
-    window.deleteFile = function(path) {
-        if (confirm(`Are you sure you want to delete ${path}?`)) {
-            fetch(`/delete/${path}`, {
-                method: 'DELETE'
-            })
-            .then(response => {
-                if (response.ok) {
-                    // Refresh the current directory view
-                    fetchFileList(currentPath);
-                } else {
-                    alert('Failed to delete the file');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while deleting the file');
-            });
-        }
-    };
+    // Delete File Function
+    window.deleteFile = function(path, name) {
+    if (confirm(`Are you sure you want to delete ${name}?`)) {
+        fetch(`/delete/${path}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())  // Parse JSON response
+        .then(data => {
+            if (data.message) {
+                message = data.message;
+                fetchFileList(currentPath);
+                showToast(message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the file');
+        });
+    }
+};
 
-    // Function to determine file icons based on MIME type (unchanged)
-    window.getFileIcon = function(mimetype) {
-        if (!mimetype) return '<i class="bi bi-file-earmark"></i>'; 
-
-        if (mimetype.startsWith("image/")) return '<i class="bi bi-file-image"></i>';
-        if (mimetype.startsWith("video/")) return '<i class="bi bi-file-play"></i>';
-        if (mimetype.startsWith("audio/")) return '<i class="bi bi-file-music"></i>';
-        if (mimetype === "application/pdf") return '<i class="bi bi-file-pdf"></i>';
-        if (mimetype.includes("spreadsheet") || mimetype.includes("excel")) return '<i class="bi bi-file-spreadsheet"></i>';
-        if (mimetype.includes("document") || mimetype.includes("word")) return '<i class="bi bi-file-word"></i>';
+    // Function to determine file icons based on filename extension
+    window.getFileIcon = function(filename) {
+        if (!filename) return '<i class="bi bi-file-earmark"></i>';
         
-        return '<i class="bi bi-file-earmark"></i>'; 
+        const extension = filename.split('.').pop().toLowerCase();
+        
+        // Image files
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
+            return '<i class="bi bi-file-image"></i>';
+        }
+        
+        // Video files
+        if (['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv'].includes(extension)) {
+            return '<i class="bi bi-file-play"></i>';
+        }
+        
+        // Audio files
+        if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(extension)) {
+            return '<i class="bi bi-file-music"></i>';
+        }
+        
+        // Document files
+        if (['pdf'].includes(extension)) {
+            return '<i class="bi bi-file-pdf"></i>';
+        }
+        
+        if (['doc', 'docx', 'rtf', 'txt', 'odt'].includes(extension)) {
+            return '<i class="bi bi-file-word"></i>';
+        }
+        
+        if (['xls', 'xlsx', 'csv', 'ods'].includes(extension)) {
+            return '<i class="bi bi-file-spreadsheet"></i>';
+        }
+        
+        if (['ppt', 'pptx', 'odp'].includes(extension)) {
+            return '<i class="bi bi-file-slides"></i>';
+        }
+        
+        // Archive files
+        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+            return '<i class="bi bi-file-zip"></i>';
+        }
+        
+        // Code files
+        if (['html', 'css', 'js', 'php', 'py', 'java', 'c', 'cpp', 'json'].includes(extension)) {
+            return '<i class="bi bi-file-code"></i>';
+        }
+        
+        // Default file icon
+        return '<i class="bi bi-file-earmark"></i>';
     };
-
+    
+    function formatFolderName(input) {
+    return input.split('_') // Split by underscore
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
+                .join(' '); // Join with space
+}
     // Initial Fetch
     fetchFileList();
 });
+    
 </script>
 {%endblock%}

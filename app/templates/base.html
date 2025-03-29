@@ -122,30 +122,34 @@
                         <button class="btn text-white dropdown-toggle no-loader" type="button" data-bs-toggle="dropdown">
                             <i class="fa-solid fa-user fa-xl"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 205px;">
                             {% if current_user.is_authenticated %}
                             {% if current_user.isAdmin %}
                             <a class="list-group-item list-group-item-action p-3 loader fs-6"
+                                href="{{url_for('auth.manage_users')}}">
+                                <i class="fa-solid fa-user-gear"></i>&nbsp; Manage Users
+                            </a>
+                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
                                 href="{{url_for('auth.reset_password')}}">
-                                <i class="fa-solid fa-unlock-keyhole"></i>&nbsp;Reset Password
+                                <i class="fa-solid fa-unlock-keyhole"></i>&nbsp; Reset Password
                             </a>
                             {% endif %}
                             <a class="list-group-item list-group-item-action p-3 loader fs-6"
                                 href="{{url_for('auth.change_password')}}">
-                                <i class="fa-solid fa-user-pen"></i>&nbsp;Change Password
+                                <i class="fa-solid fa-user-pen"></i>&nbsp; Change Password
                             </a>
                             <a href="{{url_for('auth.logout')}}"
                                 class="list-group-item list-group-item-action p-3 loader fs-6">
-                                <i class="fa-solid fa-user-lock"></i>&nbsp;Logout
+                                <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
                             </a>
                             {% else %}
                             <a href="{{url_for('auth.login')}}"
                                 class="list-group-item list-group-item-action p-3 loader fs-6">
-                                <i class="fa-solid fa-user-check"></i>&nbsp;Login
+                                <i class="fa-solid fa-user-check"></i>&nbsp; Login
                             </a>
                             <a href="{{url_for('auth.register')}}"
                                 class="list-group-item list-group-item-action p-3 loader fs-6">
-                                <i class="fa-solid fa-user-plus"></i>&nbsp;Register
+                                <i class="fa-solid fa-user-plus"></i>&nbsp; Register
                             </a>
                             {% endif %}
 
@@ -206,12 +210,12 @@
                 <span class="me-2"><i class="fa-solid fa-hard-drive"></i></span>
                 <strong class="me-auto">iDrive</strong>
                 <small></small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"
+                <button type="button" class="btn-close btn-close-white no-loader" data-bs-dismiss="toast"
                     aria-label="Close"></button>
             </div>
             <div class="toast-body" id="flashMesssageDiv">
                 {% if flash_message %}
-                {{flash_message[0]}}
+                {{flash_message}}
                 {% endif %}
             </div>
         </div>
@@ -253,6 +257,28 @@
         });
     });
 });
+function showToast(message, duration = 3000) {
+    const toastEl = document.getElementById('liveToast');
+    const toastBody = document.getElementById('flashMesssageDiv');
+
+    if (!toastEl || !toastBody) {
+        console.error('Toast element not found!');
+        return;
+    }
+
+    // Set the message
+    toastBody.innerHTML = message;
+
+    // Initialize and show the toast
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+
+    // Auto-hide the toast after the given duration
+    setTimeout(() => {
+        toast.hide();
+    }, duration);
+}
+
     </script>
 
     {%block scripts%}
