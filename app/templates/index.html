@@ -22,13 +22,10 @@
 <section id="withFiles" class="d-none">
     
     <div class="row mt-4">
-        <div class="col-md-2">
-            <a type="button" class="btn btn-primary" href="/upload">
-                <i class="fa-solid fa-plus"></i> <span class="ms-2">New</span>
-            </a>
-        </div>
-        <div class="col-md-8">
-            <div class="input-group">
+
+        <div class="col-md-3 justify-content-start d-flex" id="storageStatus"></div>
+        <div class="col-md-6">
+            <div class="input-group pt-3">
                 <input type="text" id="searchInput" class="form-control rounded-start-5" placeholder="Search Files"
                     aria-describedby="searchInput_2">
                 <span class="input-group-text rounded-end-5" id="searchInput_2">
@@ -36,22 +33,29 @@
                 </span>
             </div>
         </div>
-        <div class="col-md-2 align-items-center justify-content-end d-flex" id="viewToggleBtn">
-            <div class="view-toggle d-flex justify-content-end mb-3">
-                <div class="btn-group border" role="group">
-                    <button type="button" class="btn btn-secondary active text-primary no-loader" id="cardViewBtn">
-                        <i class="fa-solid fa-table-cells-large fa-lg"></i><i class="fa-solid fa-check ms-1 fa-sm"></i>
-                    </button>
-                    <button type="button" class="btn btn-secondary no-loader" id="tableViewBtn">
-                        <i class="fa-solid fa-list-ul fa-lg"></i>
-                    </button>
-                </div>
-            </div>
+        <div class="col-md-3 d-flex justify-content-end">
+            <a type="button" class="btn btn-primary mt-3 me-2" href="/upload">
+                <i class="fa-solid fa-plus"></i> <span class="ms-2">New</span>
+            </a>
         </div>
     </div>
     <section>
-        <div>
-            <ol id="breadcrumb" class="breadcrumb" style="border: none; box-shadow: none;" ></ol>
+        <div class="row">
+            <div class="col">
+                <ol id="breadcrumb" class="breadcrumb" style="border: none; box-shadow: none;" ></ol>
+            </div>
+            <div class="col-md-2 pt-3 align-items-center justify-content-end d-flex" id="viewToggleBtn">
+                <div class="view-toggle d-flex justify-content-end mb-3">
+                    <div class="btn-group border" role="group">
+                        <button type="button" class="btn btn-secondary active text-primary no-loader" id="cardViewBtn">
+                            <i class="fa-solid fa-table-cells-large fa-lg"></i><i class="fa-solid fa-check ms-1 fa-sm"></i>
+                        </button>
+                        <button type="button" class="btn btn-secondary no-loader" id="tableViewBtn">
+                            <i class="fa-solid fa-list-ul fa-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
     <!-- Card View Container -->
@@ -130,6 +134,34 @@ document.addEventListener('DOMContentLoaded', function () {
         const searchTerm = this.value.toLowerCase().trim();
         filterItems(searchTerm);
     });
+    async function fetchStorageStatus() {
+    try {
+        const response = await fetch('/storage_status', { method: 'POST' });
+        const data = await response.json();
+
+        const storageContainer = document.getElementById('storageStatus');
+        if (!storageContainer) return;
+
+        const { used, allocated, danger, percentage } = data;
+
+        // Determine danger class for text and progress bar
+        const dangerClass = danger ? 'text-danger' : '';
+        const progressBarClass = danger ? 'bg-danger' : '';
+
+        // Update the HTML inside #storageStatus
+        storageContainer.innerHTML = `
+            <div class="container p-0 m-0 ms-3 ${dangerClass}" style="width: 50%;">
+                <span class="fs-8"><i class="fa-solid fa-cloud"></i> Storage (${percentage}% Full)</span>
+                <div class="progress" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100" style="height: 5px;">
+                    <div class="progress-bar ${progressBarClass}" style="width: ${percentage}%;"></div>
+                </div>
+                <span class="fs-8">${used} of ${allocated} used</span>
+            </div>
+        `;
+    } catch (error) {
+        console.error("Error fetching storage status:", error);
+    }
+}
 
     function filterItems(searchTerm) {
         if (!searchTerm) {
@@ -160,6 +192,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Fetch Directories & Files
     window.fetchFileList = function(folderPath = '') {
+        fetchStorageStatus();
         console.log("Fetching folder:", folderPath);
         toggleSpinner();
         fetch('/', {
@@ -237,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <h5 class="card-title text-truncate" title="${item.is_directory ? formatFolderName(item.name) : item.name}">
                             ${item.is_directory ? formatFolderName(item.name) : item.name}
                         </h5>
-                        <p class="card-text text-muted">${item.size}</p>
+                        <p class="card-text text-muted">${item.is_directory ? item.size+'/'+item.allocated_storage : item.size}</p>
                         <p class="card-text text-muted small">${item.upload_date || ''}</p>
                         ${item.is_directory ? `
                             <div class="mt-3 d-flex justify-content-center">

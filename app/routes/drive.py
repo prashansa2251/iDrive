@@ -9,6 +9,7 @@ import tempfile
 import boto3
 import time
 from app.classes.helpers import HelperClass
+from app.models.user_config import UserConfig
 
 def create_drive_blp(socketio):
 
@@ -31,13 +32,12 @@ def create_drive_blp(socketio):
     @blp.route('/', methods=['GET', 'POST'])
     def index():
         if not current_user.is_authenticated:
-                    return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.login'))
         message = HelperClass.get_message()
         if request.method == 'POST':
 
             try:
                 
-
                 # Get the requested folder path from JSON
                 data = request.get_json()
                 folder_path = data.get('path', '')
@@ -49,6 +49,8 @@ def create_drive_blp(socketio):
                     if 'CommonPrefixes' in response:
                         for prefix in response['CommonPrefixes']:
                             folder_name = prefix['Prefix'].rstrip('/')
+                            config = UserConfig.find_by_folder_name(folder_name)
+                            allocated_storage = HelperClass.format_allocated_storage(float(config.max_size))
                             parts = folder_name.split('_', 1)
                             if len(parts) == 2 and parts[0].isdigit():
                                 folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
@@ -67,6 +69,7 @@ def create_drive_blp(socketio):
                                     'path': folder_name,
                                     'is_directory': True,
                                     'size':HelperClass.format_file_size(total_size) if total_size else None,
+                                    'allocated_storage':allocated_storage,
                                     'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
                                 })
                     return jsonify(user_folders), 200
@@ -75,10 +78,12 @@ def create_drive_blp(socketio):
                 response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
                 folders = set()  # To store unique folder names
                 items = []
-
+                user_folder_name = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
                 if 'Contents' in response:
                     for item in response['Contents']:
                         file_key = item['Key']
+                        if user_folder_name not in file_key:
+                            continue
                         last_modified = None
                         # Check if this is a subfolder
                         sub_path = file_key.split('/', 1)[-1]
@@ -209,7 +214,7 @@ def create_drive_blp(socketio):
     def upload_post():
         if current_user.is_authenticated:
             try:
-                foldername = HelperClass.create_or_get_user_folder(s3_client,current_user.id,current_user.username)
+                foldername = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
                 sid = request.form.get('sid', '')  # Get Socket.IO session ID
                 
                 if not sid:
@@ -234,7 +239,10 @@ def create_drive_blp(socketio):
                         file.seek(0, os.SEEK_END)
                         total_size = file.tell()
                         file.seek(0)  # Reset position
-                        
+                        can_be_uploaded,message = HelperClass.file_can_be_uploaded(s3_client,current_user.id,total_size)
+                        if not can_be_uploaded:
+                            flash(message)
+                            return jsonify({'message':'No Storage'}),200
                         # Upload with progress tracking
                         s3_client.upload_fileobj(
                             file, 
@@ -429,6 +437,14 @@ def create_drive_blp(socketio):
             flash(f'Error deleting file: {str(e)}')
         
         # return redirect(url_for('drive.index'))
-        
+    
+    @blp.route('/storage_status',methods=['POST'])
+    def storage_status():
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        storage_status = HelperClass.check_remaining_storage(s3_client,current_user.id)
+        return jsonify(storage_status),200
+    
+    
     return blp
 

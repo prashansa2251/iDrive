@@ -37,19 +37,6 @@
         border: 1px solid #e0e0e0;
         border-radius: 5px;
     }
-    .upload-progress-bar {
-        background-color: #f0f0f0;
-        height: 10px;
-        border-radius: 5px;
-        margin: 10px 0;
-    }
-    .upload-progress-bar-fill {
-        background-color: #4CAF50;
-        height: 100%;
-        width: 0;
-        border-radius: 5px;
-        transition: width 0.5s ease;
-    }
 </style>
 {%endblock%}
 
@@ -260,10 +247,10 @@ fileInput.addEventListener('change', handleFileSelection);
                 <span>${file.name}</span>
                 <span class="upload-status fw-semibold text-warning">Pending</span>
             </div>
-            <div class="upload-progress-bar">
-                <div class="upload-progress-bar-fill"></div>
+            <div class="upload-progress-bar progress" role='progressbar'style="height: 10px;">
+                <div class="upload-progress-bar-fill bg-success progress-bar progress-bar-animated progress-bar-striped" style=></div>
             </div>
-            <div class="upload-details d-flex justify-content-between">
+            <div class="upload-details mt-1 d-flex justify-content-between">
                 <span class='text-muted fs-8'>
                     <span class="upload-speed">0 KB/s</span>
                     <span>( Time Remaining: </span>
@@ -371,6 +358,9 @@ fileInput.addEventListener('change', handleFileSelection);
         })
         .then(response => response.json())
         .then(data => {
+            if (data.message === 'No Storage') {
+                window.location.href = '/'; // Redirect to index page
+            }
             if (data.filename && data.original_name) {
                 filenameMap[data.filename] = data.original_name;
                 filenameMap[data.original_name] = data.filename;

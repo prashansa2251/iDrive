@@ -46,3 +46,8 @@ class UserConfig(db.Model):
     def get_folder_name(cls,user_id):
         user_config = cls.query.filter_by(user_id=user_id).first()
         return user_config.folder_name
+    
+    @classmethod
+    def get_allocated_storage(cls,user_id):
+        user = cls.query.filter_by(user_id=user_id).first()
+        return float(user.max_size)
