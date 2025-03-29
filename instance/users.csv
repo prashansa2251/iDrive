@@ -1,0 +1,4 @@
+id,username,email,password,isActive,isAdmin
+1,Prashansa Sharma,sharmaprashansa1@gmail.com,$pbkdf2-sha256$29000$WOu9l/L.39ubU4pxrnXOOQ$rZnkrmj2BiCv4eHf9/F4WObsQhDwdpMsm0MVtVTA0WI,1,1
+2,Nimish Grover,grovernimish2003@gmail.com,$pbkdf2-sha256$29000$mVNKaa11bq3Veo.RMiZEyA$3Z737cjAAmTNiPEgjHTAp6hzUhJXBbSw52T/5nInfUk,1,0
+3,Amar Saxena,amar.saxena@giz.de,$pbkdf2-sha256$29000$RSgFgFBqzfkfY6zV.p9zTg$WM3TELUV6vOQhvg5tAqGkZmNwuRi61duVD0MfWaBEzg,1,0

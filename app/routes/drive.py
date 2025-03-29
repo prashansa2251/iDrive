@@ -203,7 +203,7 @@ def create_drive_blp(socketio):
                 ongoing_uploads[self.sid]['cancelled'] = True
 
     class CancelUploadException(Exception):
-        print(Exception)
+        pass
 
     @blp.route('/upload', methods=['POST'])
     def upload_post():

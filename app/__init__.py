@@ -15,7 +15,7 @@ def create_app():
 # Initialize Flask app
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'simple-secret-key'
-    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///database.db"
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     socketio.init_app(app, cors_allowed_origins="*")
     #db register

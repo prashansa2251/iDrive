@@ -2,20 +2,13 @@ from flask import Blueprint, flash, get_flashed_messages, json, jsonify, redirec
 from flask_login import current_user, login_required, login_user, logout_user
 from app.models.user_config import UserConfig
 from app.models.users import User
-
+from app.classes.helpers import HelperClass
 blp = Blueprint("auth","auth")
-def get_message():
-    messages = get_flashed_messages()
-    # if len(messages) > 0:
-    #     message = messages[0]
-    # else:
-    #     message = ''
 
-    return messages
 
 @blp.route('/register', methods=['POST','GET'])
 def register():
-    message = get_message()
+    message = HelperClass.get_message()
     if request.method=='POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -57,7 +50,7 @@ def login():
         except Exception as e:
             flash('There was an error while connecting to database!')
             print(e)
-    message = get_message()
+    message = HelperClass.get_message()
     return render_template('auth/login.html', flash_message = message)
 
 @blp.route('/logout')
@@ -94,7 +87,7 @@ def change_password():
         except Exception as e:
             flash('There was an error while connecting to database!')
             print(e)    
-    message = get_message()
+    message = HelperClass.get_message()
     return render_template("auth/change_password.html", flash_message = message)
 
 @blp.route('/forgot_password')
@@ -127,7 +120,7 @@ def reset_password():
         # return render_template("auth/reset_password.html")
     else:
         flash("Only admin can reset password!")
-    message = get_message()
+    message = HelperClass.get_message()
     return render_template("auth/reset_password.html",
                            post_url = url_for('.reset_password'),
                            flash_message = message,
@@ -150,7 +143,7 @@ def manage_users():
     if current_user.isAdmin:
         users = User.get_all()
         # states = State.get_all()
-        message = get_message()
+        message = HelperClass.get_message()
         return render_template('auth/manage_users.html',
                             flash_message = message,
                             users=users,
