@@ -8,41 +8,38 @@
         <div class="col-md-6">
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white text-center">
-                    <div class="fs-4">Login to Your Account</div>
+                    <div class="fs-6">Login to Your Account</div>
                 </div>
                 <div class="card-body">
                     <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}" novalidate>
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
+                            <label for="email" class="form-label fs-7">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email" required>
-                            <div class="invalid-feedback">
+                            <div class="invalid-feedback fs-8">
                                 Please enter a valid email address.
                             </div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
+                            <label for="password" class="form-label fs-7">Password</label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="password" name="password" required>
                                 <button class="btn btn-outline-secondary toggle-password no-loader" type="button">
                                     <i class="fa-solid fa-eye"></i>
                                 </button>
                             </div>
-                            <div class="invalid-feedback">
+                            <div class="invalid-feedback fs-8">
                                 Password is required.
                             </div>
                         </div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Login</button>
+                            <button type="submit" class="btn btn-primary fs-7">Login</button>
                         </div>
                     </form>
                     
                     <div class="text-center mt-3">
-                        <p>
-                            <a href="{{ url_for('auth.forgot_password') }}" class="text-muted">Forgot Password?</a>
-                        </p>
-                        <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+                        <p class="fs-8">Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
                     </div>
                 </div>
             </div>

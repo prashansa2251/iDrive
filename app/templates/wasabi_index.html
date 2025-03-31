@@ -53,10 +53,10 @@
             <div class="view-toggle d-flex justify-content-end mb-3">
                 <div class="btn-group" role="group">
                     <button type="button" class="btn btn-outline-secondary active" id="cardViewBtn">
-                        <i class="bi bi-grid-3x3-gap"></i>
+                        <i class="bi text-muted fs-3 bi-grid-3x3-gap"></i>
                     </button>
                     <button type="button" class="btn btn-outline-secondary" id="tableViewBtn">
-                        <i class="bi bi-list-ul"></i>
+                        <i class="bi text-muted fs-3 bi-list-ul"></i>
                     </button>
                 </div>
             </div>
@@ -69,19 +69,19 @@
                             <div class="card-body text-center">
                                 <div class="file-icon">
                                     {% if file.mimetype.startswith('image/') %}
-                                        <i class="bi bi-file-image"></i>
+                                        <i class="bi text-muted fs-3 bi-file-image"></i>
                                     {% elif file.mimetype.startswith('video/') %}
-                                        <i class="bi bi-file-play"></i>
+                                        <i class="bi text-muted fs-3 bi-file-play"></i>
                                     {% elif file.mimetype.startswith('audio/') %}
-                                        <i class="bi bi-file-music"></i>
+                                        <i class="bi text-muted fs-3 bi-file-music"></i>
                                     {% elif file.mimetype == 'application/pdf' %}
-                                        <i class="bi bi-file-pdf"></i>
+                                        <i class="bi text-muted fs-3 bi-file-pdf"></i>
                                     {% elif 'spreadsheet' in file.mimetype or 'excel' in file.mimetype %}
-                                        <i class="bi bi-file-spreadsheet"></i>
+                                        <i class="bi text-muted fs-3 bi-file-spreadsheet"></i>
                                     {% elif 'document' in file.mimetype or 'word' in file.mimetype %}
-                                        <i class="bi bi-file-word"></i>
+                                        <i class="bi text-muted fs-3 bi-file-word"></i>
                                     {% else %}
-                                        <i class="bi bi-file-earmark"></i>
+                                        <i class="bi text-muted fs-3 bi-file-earmark"></i>
                                     {% endif %}
                                 </div>
                                 <h5 class="card-title text-truncate" title="{{ file.original_filename }}">{{ file.original_filename }}</h5>
@@ -118,19 +118,19 @@
                                     <td class="text-center">
                                         <div class="text-center">
                                             {% if file.mimetype.startswith('image/') %}
-                                                <i class="bi bi-file-image"></i>
+                                                <i class="bi text-muted fs-3 bi-file-image"></i>
                                             {% elif file.mimetype.startswith('video/') %}
-                                                <i class="bi bi-file-play"></i>
+                                                <i class="bi text-muted fs-3 bi-file-play"></i>
                                             {% elif file.mimetype.startswith('audio/') %}
-                                                <i class="bi bi-file-music"></i>
+                                                <i class="bi text-muted fs-3 bi-file-music"></i>
                                             {% elif file.mimetype == 'application/pdf' %}
-                                                <i class="bi bi-file-pdf"></i>
+                                                <i class="bi text-muted fs-3 bi-file-pdf"></i>
                                             {% elif 'spreadsheet' in file.mimetype or 'excel' in file.mimetype %}
-                                                <i class="bi bi-file-spreadsheet"></i>
+                                                <i class="bi text-muted fs-3 bi-file-spreadsheet"></i>
                                             {% elif 'document' in file.mimetype or 'word' in file.mimetype %}
-                                                <i class="bi bi-file-word"></i>
+                                                <i class="bi text-muted fs-3 bi-file-word"></i>
                                             {% else %}
-                                                <i class="bi bi-file-earmark"></i>
+                                                <i class="bi text-muted fs-3 bi-file-earmark"></i>
                                             {% endif %}
                                         </div>
                                     </td>
@@ -154,7 +154,7 @@
         {% else %}
             <div class="text-center py-5">
                 <div class="display-1 text-muted mb-3">
-                    <i class="bi bi-cloud-upload"></i>
+                    <i class="bi text-muted fs-3 bi-cloud-upload"></i>
                 </div>
                 <h2 class="text-muted">No files uploaded yet</h2>
                 <p class="lead">Upload your first file to get started</p>

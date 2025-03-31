@@ -50,7 +50,9 @@ def login():
         except Exception as e:
             flash('There was an error while connecting to database!')
             print(e)
+
     message = HelperClass.get_message()
+    print(message)
     return render_template('auth/login.html', flash_message = message)
 
 @blp.route('/logout')
@@ -74,72 +76,68 @@ def change_password():
                     user.set_password(new_password)
                     user.update_db()
                     flash('Password changed successfully! Please login with new password!')
-                    return redirect(url_for('auth.logout'))
+                    return redirect(url_for('auth.login'))
                 else:
-                    flash('new and confirm password do not match!')
+                    flash('New and confirm password do not match!')
                     return redirect(url_for('auth.change_password'))
             elif user is None:
                 flash('User does not exist!')
             elif not User.check_password(user, password):
                 flash('Old password is incorrect')
             elif not user.isActive:
-                flash('User is not active. Please contact State Coordinator')
+                flash('User is not active. Please contact Admin')
         except Exception as e:
             flash('There was an error while connecting to database!')
             print(e)    
     message = HelperClass.get_message()
     return render_template("auth/change_password.html", flash_message = message)
 
-@blp.route('/forgot_password')
-@login_required
-def forgot_password():
-    return render_template("auth/forgot_password.html")
 
-@blp.route('/reset_password', methods=['POST','GET'])
+@blp.route('/reset_password', methods=['POST'])
 @login_required
 def reset_password():
     if current_user.isAdmin: 
-        users = User.get_all()           
         if request.method=='POST':
             try:
                 json_data = request.json
-                user = User.query.filter_by(id=json_data['id']).first()
+                user = User.query.filter_by(id=json_data['user_id']).first()
                 if user and user.isActive:
-                    reset_pwd = user.username[:4] + '_123'
+                    reset_pwd = json_data['reset_password']
                     user.set_password(reset_pwd)
                     user.update_db()
                     flash('Password reset successfully! Please login with new password!')
-                    return {'redirect_url' : url_for('auth.approve')}
+                    return jsonify({'message' : 'Password reset successfull'}),200
                 elif user is None:
                     flash('User does not exist!')
+                    return jsonify({'message' : 'User does not exist!'}),200
                 elif not user.isActive:
                     flash('User is not active!')
+                    return jsonify({'message' : 'User is not active!'}),200
             except Exception as e:
                 flash('There was an error connecting to database!')
-                print(e)        
-        # return render_template("auth/reset_password.html")
+                print(e)
+                return jsonify({'message' : 'There was an error connecting to database!'}),200
+                        
     else:
         flash("Only admin can reset password!")
-    message = HelperClass.get_message()
-    return render_template("auth/reset_password.html",
-                           post_url = url_for('.reset_password'),
-                           flash_message = message,
-                           users=users,
-                           user_data=json.dumps(users))
+        return jsonify({'message' : 'Only admin can reset password!'}),200
     
 
 @blp.route('/manage_users', methods=['POST','GET'])
 @login_required
 def manage_users():
     if request.method =='POST':
-        json_data = request.json
-        for item in json_data:
-            if item['id']:
-                user_object = User.get_by_id(item['id'])
-                user_object.isActive = bool(item['isActive'])
-                user_object.update_db()
-        flash("The user(s) is/are approved!!")
-        return jsonify({'redirect_url': url_for('drive.index')})
+        if current_user.isAdmin:
+            json_data = request.json
+            for item in json_data:
+                if item['id']:
+                    user_object = User.get_by_id(item['id'])
+                    user_object.isActive = bool(item['isActive'])
+                    user_object.update_db()
+            flash("The user(s) is/are approved!!")
+            return jsonify({'redirect_url': url_for('drive.index')})
+        else:
+            flash("Only admin can reset password!")
     if current_user.isAdmin:
         users = User.get_all()
         # states = State.get_all()
@@ -152,7 +150,7 @@ def manage_users():
         flash('You must be admin to view this page!')
         return redirect(url_for('auth.login'))
     
-@blp.route('/update_storage',methods=['POST','GET'])
+@blp.route('/update_storage',methods=['POST'])
 @login_required
 def update_storage():
     if current_user.is_authenticated:
@@ -169,7 +167,7 @@ def update_storage():
     flash('You must be logged in to view this page!')
     return redirect(url_for('auth.login'))
 
-@blp.route('/toggle_user_status',methods=['POST','GET'])
+@blp.route('/toggle_user_status',methods=['POST'])
 @login_required
 def toggle_user_status():
     if current_user.is_authenticated:

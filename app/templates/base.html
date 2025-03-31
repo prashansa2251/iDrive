@@ -100,6 +100,9 @@
         .fs-8 {
             font-size: 0.75rem !important;
         }
+        .fs-9 {
+            font-size: 0.65rem !important;
+        }
     </style>
     {%block css%}
     {%endblock%}
@@ -120,42 +123,38 @@
                 <div class="btn-toolbar justify-content-end gap-2" role="toolbar" aria-label="Toolbar with button groups">
                     <div class="btn-group mr-2" role="group" aria-label="First group">
                         <button class="btn text-white dropdown-toggle no-loader" type="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-user fa-xl"></i>
+                            <i class="fa-solid fa-user fa-lg"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" style="min-width: 205px;">
                             {% if current_user.is_authenticated %}
                             {% if current_user.isAdmin %}
-                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
+                            <a class="list-group-item list-group-item-action p-3 loader fs-7"
                                 href="{{url_for('auth.manage_users')}}">
                                 <i class="fa-solid fa-user-gear"></i>&nbsp; Manage Users
                             </a>
-                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
-                                href="{{url_for('auth.reset_password')}}">
-                                <i class="fa-solid fa-unlock-keyhole"></i>&nbsp; Reset Password
-                            </a>
                             {% endif %}
-                            <a class="list-group-item list-group-item-action p-3 loader fs-6"
+                            <a class="list-group-item list-group-item-action p-3 loader fs-7"
                                 href="{{url_for('auth.change_password')}}">
                                 <i class="fa-solid fa-user-pen"></i>&nbsp; Change Password
                             </a>
                             <a href="{{url_for('auth.logout')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-6">
+                                class="list-group-item list-group-item-action p-3 loader fs-7">
                                 <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
                             </a>
                             {% else %}
                             <a href="{{url_for('auth.login')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-6">
+                                class="list-group-item list-group-item-action p-3 loader fs-7">
                                 <i class="fa-solid fa-user-check"></i>&nbsp; Login
                             </a>
                             <a href="{{url_for('auth.register')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-6">
+                                class="list-group-item list-group-item-action p-3 loader fs-7">
                                 <i class="fa-solid fa-user-plus"></i>&nbsp; Register
                             </a>
                             {% endif %}
 
                         </ul>
                     </div>
-                    <div class="btn-group mr-2" role="group" aria-label="Second group">
+                    <div class="btn-group mr-2 d-none" role="group" aria-label="Second group">
                         <button class="btn text-white border border-light no-loader" type="button" data-bs-toggle="offcanvas"
                             data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                             <i class="fa-solid fa-bars fa-xl"></i>
@@ -215,6 +214,7 @@
             </div>
             <div class="toast-body" id="flashMesssageDiv">
                 {% if flash_message %}
+                <div class="message"></div>
                 {{flash_message}}
                 {% endif %}
             </div>
