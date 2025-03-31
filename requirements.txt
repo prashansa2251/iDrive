@@ -1,0 +1,12 @@
+alembic==1.13.1
+boto3==1.28.0
+Flask==3.1.0
+Flask_Login==0.6.3
+Flask_Migrate==4.0.5
+Flask_SocketIO==5.5.1
+flask_sqlalchemy==3.1.1
+passlib==1.7.4
+python-dotenv==1.1.0
+python_dateutil==2.9.0.post0
+SQLAlchemy==2.0.35
+Werkzeug==3.1.3

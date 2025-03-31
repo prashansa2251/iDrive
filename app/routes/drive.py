@@ -448,6 +448,9 @@ def create_drive_blp(socketio):
         storage_status = HelperClass.check_remaining_storage(s3_client,current_user.id)
         return jsonify(storage_status),200
     
-    
+    @blp.route('/version')
+    def version():
+        version = HelperClass.get_version()
+        return {"version": version}
     return blp
 

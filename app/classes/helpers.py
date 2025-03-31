@@ -11,6 +11,11 @@ from app.models.users import User
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
 
 class HelperClass():
+    @classmethod
+    def get_version(cls):
+        with open('version.txt', 'r') as file:
+            version = file.read().strip()
+        return version
     
     @classmethod
     def create_or_get_user_folder(cls,s3_client,user_id):
