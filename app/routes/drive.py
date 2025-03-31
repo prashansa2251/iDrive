@@ -78,7 +78,10 @@ def create_drive_blp(socketio):
                 response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
                 folders = set()  # To store unique folder names
                 items = []
-                user_folder_name = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
+                user_folder_name = folder_path
+                if not folder_path:
+                    user_folder_name = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
+                    
                 if 'Contents' in response:
                     for item in response['Contents']:
                         file_key = item['Key']
