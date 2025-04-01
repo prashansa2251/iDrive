@@ -22,13 +22,21 @@ echo "✅ Maintenance mode enabled."
 echo "📥 Pulling latest changes from Git..."
 git pull || { echo "❌ Git pull failed!"; exit 1; }
 
-# Display version information
+# Increment version
 if [ -f "$VERSION_FILE" ]; then
     VERSION=$(cat "$VERSION_FILE")
-    echo "🔹 Current Version: $VERSION"
+    NEW_VERSION=$(awk "BEGIN {printf \"%.1f\", $VERSION + 0.1}")
+    echo "$NEW_VERSION" > "$VERSION_FILE"
+    echo "🔹 Updated Version: $NEW_VERSION"
 else
-    echo "⚠️ Warning: $VERSION_FILE not found!"
+    echo "⚠️ Warning: $VERSION_FILE not found! Creating a new version file with 1.0."
+    echo "1.0" > "$VERSION_FILE"
 fi
+
+# Commit the updated version file
+git add "$VERSION_FILE"
+git commit -m "🔄 Auto-incremented version to $NEW_VERSION"
+git push || { echo "❌ Git push failed!"; exit 1; }
 
 # Stop and remove the existing Docker container
 echo "🛑 Stopping the running container..."
