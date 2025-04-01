@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
         items.forEach(item => {
             let cardHTML = `
             <div class="col">
-                <div class="card h-100 file-card ${item.is_directory ? 'directory-item' : ''}" onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
+                <div class="card h-100 file-card ${item.is_directory ? 'directory-item card-clickable' : ''}" onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
                     <div class="card-body text-center p-2">
                         <div class="file-icon mb-2">${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-4"></i>' : getFileIcon(item.original_filename)}</div>
                         <h5 class="card-title text-truncate fs-7" title="${item.is_directory ? formatFolderName(item.name) : item.name}">
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         items.forEach(item => {
             let rowHTML = `
-            <tr onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
+            <tr class="${item.is_directory ? `tr-clickable` : ''}" onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
                 <td class="text-center p-1 align-middle">${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-4"></i>' : getFileIcon(item.original_filename)}</td>
                 <td class='fs-7 align-middle'>${item.is_directory ? formatFolderName(item.name) : item.name}</td>
                 <td class='text-muted fs-8 align-middle'>${item.size}</td>
