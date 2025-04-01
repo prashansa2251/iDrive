@@ -27,7 +27,7 @@ if [ -f "$VERSION_FILE" ]; then
     VERSION=$(cat "$VERSION_FILE")
     NEW_VERSION=$(awk "BEGIN {printf \"%.1f\", $VERSION + 0.1}")
     echo "$NEW_VERSION" > "$VERSION_FILE"
-    echo "🔹 Updated Version: $VERSION"
+    echo "🔹 Current Version: $VERSION"
     echo "🔹 Updated Version: $NEW_VERSION"
 else
     echo "⚠️ Warning: $VERSION_FILE not found! Creating a new version file with 1.0."
