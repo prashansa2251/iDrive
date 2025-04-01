@@ -8,7 +8,7 @@ from datetime import datetime, timezone,timedelta
 
 from app.models.users import User
 
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
+BUCKET_NAME = os.environ.get('WASABI_BUCKET_NAME', 'your-bucket-name')
 
 class HelperClass():
     @classmethod
@@ -20,7 +20,7 @@ class HelperClass():
     @classmethod
     def create_or_get_user_folder(cls,s3_client,user_id):
         folder_name = UserConfig.get_folder_name(user_id)
-        check_folder = s3_client.list_objects_v2(Bucket=BUCKET_NAME, MaxKeys=1)
+        check_folder = s3_client.list_objects_v2(Bucket=BUCKET_NAME,Prefix=folder_name + "/", MaxKeys=1)
         folder_exists = "Contents" in check_folder
         if not folder_exists:
             try:

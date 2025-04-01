@@ -10,16 +10,17 @@ import boto3
 import time
 from app.classes.helpers import HelperClass
 from app.models.user_config import UserConfig
+from dotenv import load_dotenv
 
 def create_drive_blp(socketio):
-
+    load_dotenv()
     blp = Blueprint('drive', 'drive')
 
     ongoing_uploads = {}  # Dictionary to track ongoing uploads
     
     WASABI_REGION = os.environ.get('WASABI_REGION', 'us-east-1')
     # Configure your bucket name
-    BUCKET_NAME = os.environ.get('BUCKET_NAME', 'your-bucket-name')
+    BUCKET_NAME = os.environ.get('WASABI_BUCKET_NAME', 'your-bucket-name')
     # Configure S3 client for Backblaze B2
     s3_client = boto3.client(
         's3',
@@ -28,7 +29,9 @@ def create_drive_blp(socketio):
         aws_secret_access_key=os.environ.get('WASABI_SECRET_KEY'),
         region_name=WASABI_REGION
     )
-
+    print(f'https://s3.{WASABI_REGION}.wasabisys.com')
+    print(f"Using endpoint: {s3_client.meta.endpoint_url}")
+    print(f"Using region: {s3_client.meta.region_name}")
     @blp.route('/', methods=['GET', 'POST'])
     def index():
         if not current_user.is_authenticated:

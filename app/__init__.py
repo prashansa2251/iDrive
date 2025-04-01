@@ -8,12 +8,13 @@ import os
 from app.db import db
 from app.models.users import User
 from flask_socketio import SocketIO
-
+from dotenv import load_dotenv
 socketio = SocketIO()
 
 def create_app():
 # Initialize Flask app
     app = Flask(__name__)
+    load_dotenv()
     app.config['SECRET_KEY'] = 'simple-secret-key'
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
