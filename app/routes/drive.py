@@ -22,16 +22,17 @@ def create_drive_blp(socketio):
     # Configure your bucket name
     BUCKET_NAME = os.environ.get('WASABI_BUCKET_NAME', 'your-bucket-name')
     # Configure S3 client for Backblaze B2
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=f'https://s3.{WASABI_REGION}.wasabisys.com',
-        aws_access_key_id=os.environ.get('WASABI_ACCESS_KEY'),
-        aws_secret_access_key=os.environ.get('WASABI_SECRET_KEY'),
-        region_name=WASABI_REGION
-    )
+    def get_s3_client():
+        return boto3.client(
+            's3',
+            endpoint_url=f'https://s3.{os.getenv("WASABI_REGION")}.wasabisys.com',
+            aws_access_key_id=os.getenv('WASABI_ACCESS_KEY'),
+            aws_secret_access_key=os.getenv('WASABI_SECRET_KEY'),
+            region_name=os.getenv('WASABI_REGION')
+        )
     print(f'https://s3.{WASABI_REGION}.wasabisys.com')
-    print(f"Using endpoint: {s3_client.meta.endpoint_url}")
-    print(f"Using region: {s3_client.meta.region_name}")
+    # print(f"Using endpoint: {s3_client.meta.endpoint_url}")
+    # print(f"Using region: {s3_client.meta.region_name}")
     @blp.route('/', methods=['GET', 'POST'])
     def index():
         if not current_user.is_authenticated:
@@ -40,7 +41,7 @@ def create_drive_blp(socketio):
         if request.method == 'POST':
 
             try:
-                
+                s3_client = get_s3_client()
                 # Get the requested folder path from JSON
                 data = request.get_json()
                 folder_path = data.get('path', '')
@@ -220,6 +221,7 @@ def create_drive_blp(socketio):
     def upload_post():
         if current_user.is_authenticated:
             try:
+                s3_client = get_s3_client()
                 foldername = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
                 sid = request.form.get('sid', '')  # Get Socket.IO session ID
                 
@@ -315,6 +317,7 @@ def create_drive_blp(socketio):
         
         if sid in ongoing_uploads:
             try:
+                s3_client = get_s3_client()
                 upload_info = ongoing_uploads[sid]
                 
                 # Use the tracker's cancel method if exists
@@ -355,6 +358,7 @@ def create_drive_blp(socketio):
         filename = f"{folder_name}/{original_filename}"
         
         try:
+            s3_client = get_s3_client()
             # Create a temporary file to store the downloaded content
             temp_file = tempfile.NamedTemporaryFile(delete=False)
             
@@ -382,7 +386,7 @@ def create_drive_blp(socketio):
         if current_user.is_authenticated:
             try:
                 file_path = f"{folder_name}/{filename}"
-                
+                s3_client = get_s3_client()
                 # Get file metadata for content type and size
                 head_response = s3_client.head_object(Bucket=BUCKET_NAME, Key=file_path)
                 content_type = head_response.get('ContentType', 'application/octet-stream')
@@ -431,6 +435,7 @@ def create_drive_blp(socketio):
         key = folder_name + '/' + file_name
         
         try:
+            s3_client = get_s3_client()
             # Delete file from Backblaze B2
             s3_client.delete_object(
                 Bucket=BUCKET_NAME,
@@ -448,6 +453,7 @@ def create_drive_blp(socketio):
     def storage_status():
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
+        s3_client = get_s3_client()
         storage_status = HelperClass.check_remaining_storage(s3_client,current_user.id)
         return jsonify(storage_status),200
     
