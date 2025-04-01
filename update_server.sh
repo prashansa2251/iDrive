@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define container and image name
-CONTAINER_NAME="wasca-container"
-IMAGE_NAME="wasca"
+CONTAINER_NAME="idrive-container"
+IMAGE_NAME="idrive"
 VERSION_FILE="version.txt"
 
 # Define Nginx config paths
