@@ -84,7 +84,7 @@
 <section id="noFiles" class="d-none">
     <div class="text-center py-5" >
         <div class="display-1 text-muted mb-3">
-            <i class="bi text-muted fs-3 bi-cloud-upload"></i>
+            <i class="fa-solid fa-cloud-arrow-up text-muted fs-1"></i>
         </div>
         <h2 class="text-muted">No files uploaded yet</h2>
         <p class="lead">Upload your first file to get started</p>
@@ -264,22 +264,18 @@ document.addEventListener('DOMContentLoaded', function () {
         items.forEach(item => {
             let cardHTML = `
             <div class="col">
-                <div class="card h-100 file-card ${item.is_directory ? 'directory-item' : ''}">
+                <div class="card h-100 file-card ${item.is_directory ? 'directory-item' : ''}" onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
                     <div class="card-body text-center p-2">
-                        <div class="file-icon mb-2">${item.is_directory ? '<i class="bi text-muted fs-4 bi-folder"></i>' : getFileIcon(item.original_filename)}</div>
+                        <div class="file-icon mb-2">${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-4"></i>' : getFileIcon(item.original_filename)}</div>
                         <h5 class="card-title text-truncate fs-7" title="${item.is_directory ? formatFolderName(item.name) : item.name}">
                             ${item.is_directory ? formatFolderName(item.name) : item.name}
                         </h5>
                         <p class="card-text text-muted fs-8 mb-1">${item.is_directory ? item.size+'/'+item.allocated_storage : item.size}</p>
                         <p class="card-text text-muted small fs-9">${item.upload_date || ''}</p>
-                        ${item.is_directory ? `
-                            <div class="mt-3 d-flex justify-content-center">
-                                <button onclick="fetchFileList('${item.path}')" class="btn btn-sm btn-outline-primary fs-8">Open Folder</button>
-                            </div>
-                        ` : `
+                        ${item.is_directory ? `` : `
                             <div class="my-2 d-flex justify-content-center gap-2">
-                                <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="handleDownload(event,this);">Download</a>
-                                <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8">Delete</button>
+                                <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="handleDownload(event,this);"><i class="fa-solid fa-download"></i></a>
+                                <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
                         `}
                     </div>
@@ -297,18 +293,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         items.forEach(item => {
             let rowHTML = `
-            <tr>
-                <td class="text-center p-1">${item.is_directory ? '<i class="bi text-muted fs-4 bi-folder"></i>' : getFileIcon(item.original_filename)}</td>
+            <tr onclick="${item.is_directory ? `fetchFileList('${item.path}')` : ''}">
+                <td class="text-center p-1 align-middle">${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-4"></i>' : getFileIcon(item.original_filename)}</td>
                 <td class='fs-7 align-middle'>${item.is_directory ? formatFolderName(item.name) : item.name}</td>
                 <td class='text-muted fs-8 align-middle'>${item.size}</td>
                 <td class='text-muted fs-8 align-middle'>${item.upload_date || ''}</td>
                 <td>
                     ${item.is_directory ? `
-                        <button onclick="fetchFileList('${item.path}')" class="btn btn-sm btn-outline-primary fs-8">Open Folder</button>
+                        
                     ` : `
                         <div class="d-flex gap-2">
-                            <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="handleDownload(event,this);">Download</a>
-                            <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8">Delete</button>
+                            <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="handleDownload(event,this);"><i class="fa-solid fa-download"></i></a>
+                            <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     `}
                 </td>
@@ -350,54 +346,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Function to determine file icons based on filename extension
     window.getFileIcon = function(filename) {
-        if (!filename) return '<i class="bi text-muted fs-4 bi-file-earmark"></i>';
+        if (!filename) return '<i class="fa-solid fa-file text-muted fs-4"></i>';
         
         const extension = filename.split('.').pop().toLowerCase();
         
         // Image files
         if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-image"></i>';
+            return '<i class="fa-solid fa-file-image text-muted fs-4"></i>';
         }
         
         // Video files
         if (['mp4', 'mov', 'avi', 'mkv', 'webm', 'flv', 'wmv'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-play"></i>';
+            return '<i class="fa-solid fa-file-video text-muted fs-4"></i>';
         }
         
         // Audio files
         if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-music"></i>';
+            return '<i class="fa-solid fa-file-audio text-muted fs-4"></i>';
         }
         
         // Document files
         if (['pdf'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-pdf"></i>';
+            return '<i class="fa-solid fa-file-pdf text-muted fs-4"></i>';
         }
         
         if (['doc', 'docx', 'rtf', 'txt', 'odt'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-word"></i>';
+            return '<i class="fa-solid fa-file-word text-muted fs-4"></i>';
         }
         
         if (['xls', 'xlsx', 'csv', 'ods'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-spreadsheet"></i>';
+            return '<i class="fa-solid fa-file-excel text-muted fs-4"></i>';
         }
         
         if (['ppt', 'pptx', 'odp'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-slides"></i>';
+            return '<i class="fa-solid fa-file-powerpoint text-muted fs-4"></i>';
         }
         
         // Archive files
         if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-zip"></i>';
+            return '<i class="fa-solid fa-file-zipper text-muted fs-4"></i>';
         }
         
         // Code files
         if (['html', 'css', 'js', 'php', 'py', 'java', 'c', 'cpp', 'json'].includes(extension)) {
-            return '<i class="bi text-muted fs-4 bi-file-code"></i>';
+            return '<i class="fa-solid fa-file-code text-muted fs-4"></i>';
         }
         
         // Default file icon
-        return '<i class="bi text-muted fs-4 bi-file-earmark"></i>';
+        return '<i class="fa-solid fa-file text-muted fs-4"></i>';
     };
     
     function formatFolderName(input) {
