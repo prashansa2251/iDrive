@@ -135,26 +135,35 @@
                         <ul class="dropdown-menu dropdown-menu-end" style="min-width: 205px;">
                             {% if current_user.is_authenticated %}
                             {% if current_user.isAdmin %}
-                            <a class="list-group-item list-group-item-action p-3 loader fs-7"
+                            <a class="list-group-item list-group-item-action p-3 fs-7"
                                 href="{{url_for('auth.manage_users')}}">
                                 <i class="fa-solid fa-user-gear"></i>&nbsp; Manage Users
                             </a>
-                            {% endif %}
-                            <a class="list-group-item list-group-item-action p-3 loader fs-7"
+                            <a href="{{url_for('auth.logout')}}"
+                                class="list-group-item list-group-item-action p-3 fs-7">
+                                <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
+                            </a>
+                            {% else %}
+                            <a class="list-group-item list-group-item-action p-3 fs-7"
+                                href="{{url_for('auth.upgrade_storage')}}">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>&nbsp; Upgrade Storage
+                            </a>
+                            <a class="list-group-item list-group-item-action p-3 fs-7"
                                 href="{{url_for('auth.change_password')}}">
                                 <i class="fa-solid fa-user-pen"></i>&nbsp; Change Password
                             </a>
                             <a href="{{url_for('auth.logout')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-7">
+                                class="list-group-item list-group-item-action p-3 fs-7">
                                 <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
                             </a>
+                            {%endif%}
                             {% else %}
                             <a href="{{url_for('auth.login')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-7">
+                                class="list-group-item list-group-item-action p-3 fs-7">
                                 <i class="fa-solid fa-user-check"></i>&nbsp; Login
                             </a>
                             <a href="{{url_for('auth.register')}}"
-                                class="list-group-item list-group-item-action p-3 loader fs-7">
+                                class="list-group-item list-group-item-action p-3 fs-7">
                                 <i class="fa-solid fa-user-plus"></i>&nbsp; Register
                             </a>
                             {% endif %}

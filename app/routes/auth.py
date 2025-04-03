@@ -3,6 +3,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from app.models.user_config import UserConfig
 from app.models.users import User
 from app.classes.helpers import HelperClass
+from app.routes.drive import get_s3_client
 blp = Blueprint("auth","auth")
 
 
@@ -92,6 +93,14 @@ def change_password():
     message = HelperClass.get_message()
     return render_template("auth/change_password.html", flash_message = message)
 
+@blp.route('/upgrade_storage')
+@login_required
+def upgrade_storage():
+    s3_client = get_s3_client()
+    storage_info = HelperClass.check_remaining_storage(s3_client,current_user.id)
+    storage_info['upgrade_amount'] = str(int(int(storage_info['allocated'][:-3])*1.05)) + storage_info['allocated'][-3:]
+    storage_upgraded = False
+    return render_template('auth/upgrade_storage.html',storage_info = storage_info,storage_upgraded=storage_upgraded)
 
 @blp.route('/reset_password', methods=['POST'])
 @login_required

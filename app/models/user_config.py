@@ -7,13 +7,15 @@ class UserConfig(db.Model):
     folder_name = db.Column(db.String(100))
     max_size = db.Column(db.String(100))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    storage_upgraded = db.Column(db.Boolean,default='False')
     
     user = db.relationship("User", backref=db.backref('users', lazy='dynamic'))
     
-    def __init__(self, folder_name, max_size, user_id):
+    def __init__(self, folder_name, max_size,storage_upgraded,user_id):
         self.folder_name = folder_name
         self.max_size = max_size
         self.user_id = user_id
+        storage_upgraded = storage_upgraded
 
     def json(self):
         return {
@@ -21,6 +23,7 @@ class UserConfig(db.Model):
             'folder_name': self.folder_name,
             'max_size': self.max_size,
             'user_id': self.user_id,
+            'storage_upgraded': self.storage_upgraded
         }
     
     def save_to_db(self):

@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Upgrade{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <div class="fs-6">Upgrade Your Storage</div>
+                </div>
+                <div class="card-body">
+                    <!-- Current Storage Information -->
+                    <div class="mb-4">
+                        <h5 class="fs-7 mb-3">Current Storage Details</h5>
+                        <div class="progress mb-2">
+                            <div class="progress-bar small fw-semibold {%if storage_info.danger%}bg-danger{%else%}bg-success{%endif%}" role="progressbar" style='width: {{storage_info.percentage}}%;' aria-valuenow="{{storage_info.percentage}}" aria-valuemin="0" aria-valuemax="100">
+                                {%if storage_info.percentage >10 %}
+                                {{storage_info.percentage}}%
+                                </div>
+                                {%else%}
+                                </div>
+                                <span class="ms-1 text-dark small fw-semibold">{{storage_info.percentage}}%</span>
+                                {%endif%}
+                            
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted fs-8">Used: <span id="usedStorage">{{storage_info.used}}</span></small>
+                            <small class="text-muted fs-8">Total: <span id="totalStorage">{{storage_info.allocated}}</span></small>
+                        </div>
+                    </div>
+                    {%if not storage_upgraded%}
+                    <!-- Quick Upgrade Option -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="fs-7">Quick Upgrade (5%)</h5>
+                            <p class="fs-8 text-muted">Instantly increase your storage by 5% of your current capacity.</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold fs-7">+ <span id="quickUpgradeAmount">{{storage_info.upgrade_amount}}</span></span>
+                                </div>
+                                <button id="quickUpgradeBtn" class="btn btn-success btn-sm no-loader">Upgrade Now</button>
+                            </div>
+                        </div>
+                    </div>
+                    {%endif%}
+                    
+                    <!-- Custom Upgrade Request -->
+                    <form id="upgradeRequestForm" method="POST" novalidate>
+                        <h5 class="fs-7 mb-3">Request Custom Upgrade</h5>
+                        
+                        <div class="mb-3">
+                            <label for="requestSize" class="form-label fs-7">Requested Size (GB)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="requestSize" name="requestSize" 
+                                       min="1" step="1" required>
+                                <span class="input-group-text">GB</span>
+                            </div>
+                            <div class="invalid-feedback fs-8">
+                                Please enter a valid storage size (minimum 1 GB).
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary fs-7">Submit Request</button>
+                            <div class="fs-9 mt-1 text-center">
+                                <i class="fa-solid fa-info-circle me-1"></i>
+                                Admin requests typically process within 24-48 hours.
+                            </div>
+                        </div>
+                    </form>
+                    
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('upgradeRequestForm');
+    const requestSizeInput = document.getElementById('requestSize');
+    const quickUpgradeBtn = document.getElementById('quickUpgradeBtn');
+    const submitRequestBtn = form.querySelector('button[type="submit"]');
+    
+    // Disable submit button by default
+    submitRequestBtn.disabled = true;
+    
+    // Input states tracking
+    const inputStates = {
+        requestSize: false
+    };
+    
+    // Client-side validation
+    function validateForm() {
+        let isValid = true;
+        
+        // Request size validation
+        const requestSizeValid = requestSizeInput.value >= 1;
+        if (inputStates.requestSize) {
+            if (!requestSizeValid) {
+                requestSizeInput.classList.remove('is-valid');
+                requestSizeInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                requestSizeInput.classList.remove('is-invalid');
+                requestSizeInput.classList.add('is-valid');
+            }
+        }
+        
+        // Enable/disable submit button based on form validity
+        submitRequestBtn.disabled = !requestSizeValid;
+        
+        return isValid;
+    }
+    
+    // Real-time validation
+    requestSizeInput.addEventListener('input', function() {
+        inputStates.requestSize = true;
+        validateForm();
+    });
+    
+    // Quick upgrade button handler (if it exists on the page)
+    if (quickUpgradeBtn) {
+        quickUpgradeBtn.addEventListener('click', function() {            
+            // Get the upgrade amount from the page
+            const upgradeAmount = document.getElementById('quickUpgradeAmount').textContent.trim();
+            
+            // Make POST request to quick upgrade endpoint
+            fetch('/quick_upgrade', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    upgradeAmount: upgradeAmount
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Reload page if needed
+                    if (data.redirect_url) {
+                    window.location.href=data.redirect_url;
+                    }else {
+                        console.error('Error:', data);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            })
+
+        });
+    }
+    
+    // Custom upgrade form submission
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        // Force validation state
+        inputStates.requestSize = true;
+        
+        if (!validateForm()) {
+            return;
+        }
+        
+        // Get form data
+        const requestSize = requestSizeInput.value;
+        
+        // Make POST request to upgrade storage endpoint
+        fetch('/upgrade_storage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                requestSize: requestSize
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Reload page if needed
+                if (data.redirect_url) {
+                    window.location.href=data.redirect_url;
+                }
+                else {
+                console.error('Error:', data);
+                }
+            } 
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        })
+    });
+});
+</script>
+{% endblock %}
