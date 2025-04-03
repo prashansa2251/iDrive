@@ -151,164 +151,77 @@ def create_drive_blp(socketio):
             flash('You have to login to view this page !!')
             return redirect(url_for('auth.login'))
     
-    class ProgressTracker:
-        def __init__(self, total_size, filename, original_name, sid,path):
-            self.total_size = total_size
-            self.uploaded = 0
-            self.filename = filename  # UUID filename
-            self.original_name = original_name  # Original filename
-            self.sid = sid
-            self.path = path
-            self.start_time = time.time()
-            self.should_cancel = False # Start time for speed calculation
-            
-                    # Register this upload in ongoing uploads
-            ongoing_uploads[sid] = {
-                'path': path,
-                'filename': filename,
-                'original_filename': original_name,
-                'cancelled': False,
-                'total_size': total_size,
-                'tracker': self
-            }
-
-        def __call__(self, bytes_amount):
-            if (self.should_cancel or 
-            ongoing_uploads.get(self.sid, {}).get('cancelled', False)):
-            # Raise a custom exception to halt upload
-                raise CancelUploadException("Upload cancelled")
-            
-            self.uploaded += bytes_amount
-            elapsed_time = time.time() - self.start_time  # Time elapsed since start
-            speed = self.uploaded / elapsed_time  # Bytes per second
-
-            # Convert speed to human-readable format
-            speed_str = f"{speed / 1_000_000:.2f} MB/s" if speed > 1_000_000 else f"{speed / 1_000:.2f} KB/s"
-
-            # Estimate remaining time
-            remaining_bytes = self.total_size - self.uploaded
-            eta = remaining_bytes / speed if speed > 0 else 0  # Avoid division by zero
-            eta_str = time.strftime("%M:%S", time.gmtime(eta))  # Convert seconds to MM:SS
-
-            # Print progress in terminal
-            print(f"\rUploading {self.filename}: {self.uploaded}/{self.total_size} bytes "
-                f"({self.uploaded/self.total_size*100:.2f}%) - {speed_str} - ETA: {eta_str}",
-                end="", flush=True)
-
-            # Emit progress to frontend using Socket.IO
-            socketio.emit('upload_progress', {
-                'path' :self.path,
-                'filename': self.filename,  # UUID filename
-                'original_name': self.original_name,  # Original filename
-                'progress': round((self.uploaded / self.total_size) * 100, 2),
-                'speed': speed_str,
-                'eta': eta_str,
-                'uploaded_size': self.uploaded,
-                'total_size': self.total_size
-            }, room=self.sid)
+    @blp.route('/get_presigned_url', methods=['POST'])
+    def get_presigned_url():
+        """Generate a presigned URL for direct S3 upload."""
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'Authentication required'}), 401
         
-        def cancel(self):
-            """Method to explicitly set cancellation flag"""
-            self.should_cancel = True
-            # Also update the global tracking
-            if self.sid in ongoing_uploads:
-                ongoing_uploads[self.sid]['cancelled'] = True
-
-    class CancelUploadException(Exception):
-        pass
-
-    @blp.route('/upload', methods=['POST'])
-    def upload_post():
-        if current_user.is_authenticated:
-            try:
-                s3_client = get_s3_client()
-                foldername = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
-                sid = request.form.get('sid', '')  # Get Socket.IO session ID
-                
-                if not sid:
-                    return jsonify({'error': 'Invalid session ID'}), 400
-                
-                if 'file' not in request.files:
-                    return jsonify({'error': 'No file part'}), 400
-                
-                file = request.files['file']
-                
-                if file.filename == '':
-                    return jsonify({'error': 'No selected file'}), 400
-                
-                original_filename = file.filename
-                secure_name = secure_filename(file.filename)
-                unique_id = str(uuid.uuid4())
-                filename = f"{unique_id}_{secure_name}"  # UUID-prefixed filename
-                folder_file = foldername +'/'+ filename
-                try:
-                    try:
-                        # Get file size without loading it into memory
-                        file.seek(0, os.SEEK_END)
-                        total_size = file.tell()
-                        file.seek(0)  # Reset position
-                        can_be_uploaded,message = HelperClass.file_can_be_uploaded(s3_client,current_user.id,total_size)
-                        if not can_be_uploaded:
-                            flash(message)
-                            return jsonify({'message':'No Storage'}),200
-                        # Upload with progress tracking
-                        s3_client.upload_fileobj(
-                            file, 
-                            BUCKET_NAME, 
-                            folder_file,
-                            Callback=ProgressTracker(total_size, filename, original_filename, sid,folder_file)
-                        )
-                    
-                    except CancelUploadException:
-                    # Handle intentional cancellation
-                        socketio.emit('upload_cancelled', {
-                            'message': 'Upload cancelled', 
-                            'filename': filename,
-                            'original_name': original_filename
-                        }, room=sid)
-                        return jsonify({'error': 'Upload cancelled'}), 400
-
-                    # Emit upload complete event
-                    socketio.emit('upload_complete', {
-                        'path': folder_file,
-                        'filename': filename,  # UUID filename
-                        'original_name': original_filename  # Original filename
-                    }, room=sid)
-                    
-                    socketio.emit('file_uploaded', {
-                    'path': folder_file,
-                    'filename': filename,
-                    'original_name': original_filename
-                    })
-                    
-                    if sid in ongoing_uploads:
-                        del ongoing_uploads[sid]
-
-                    print("\nUpload complete!")
-
-                    return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
-                except Exception as e:
-                    # Check if upload was intentionally cancelled
-                    if sid in ongoing_uploads and ongoing_uploads[sid].get('cancelled', False):
-                        socketio.emit('upload_cancelled', {'message': 'Upload cancelled'}, room=sid)
-                        return jsonify({'error': 'Upload cancelled'}), 400
-                    
-                    # Handle other upload errors
-                    print(f"Upload error for {filename}: {e}")
-                    socketio.emit('upload_error', {
-                        'filename': filename, 
-                        'original_name': original_filename,
-                        'error': str(e)
-                    }, room=sid)
-                
-                    return jsonify({'error': str(e)}), 500
-                
-            except Exception as e:
-                print(f"\nError uploading {filename}: {e}")
-                socketio.emit('upload_error', {'filename': filename, 'error': str(e)}, room=sid)
-                return jsonify({'error': str(e)}), 500
-                
+        try:
+            # Get info about the file to be uploaded
+            original_filename = request.form.get('filename', '')
+            total_size = int(request.form.get('filesize', 0))
+            sid = request.form.get('sid', '')
             
+            if not original_filename or not total_size or not sid:
+                return jsonify({'error': 'Missing required parameters'}), 400
+            
+            # Generate secure filename
+            s3_client = get_s3_client()
+            foldername = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
+            
+            # Check if file can be uploaded (storage limits)
+            can_be_uploaded, message = HelperClass.file_can_be_uploaded(s3_client, current_user.id, total_size)
+            if not can_be_uploaded:
+                return jsonify({'message': 'No Storage'}), 200
+            
+            # Create unique filename
+            secure_name = secure_filename(original_filename)
+            unique_id = str(uuid.uuid4())
+            filename = f"{unique_id}_{secure_name}"  # UUID-prefixed filename
+            folder_file = foldername + '/' + filename
+            
+            # Generate presigned URL
+            presigned_url = create_presigned_post(s3_client, BUCKET_NAME, folder_file, 
+                                                fields=None, conditions=None, expiration=3600)
+            
+            # Register this pending upload
+            ongoing_uploads[sid] = {
+                'path': folder_file,
+                'filename': filename,
+                'original_filename': original_filename,
+                'cancelled': False,
+                'total_size': total_size
+            }
+            
+            # Add path to response for client reference
+            presigned_url['path'] = folder_file
+            presigned_url['filename'] = filename
+            
+            return jsonify(presigned_url), 200
+            
+        except Exception as e:
+            print(f"Error generating presigned URL: {e}")
+            return jsonify({'error': str(e)}), 500
+
+
+    def create_presigned_post(s3_client, bucket_name, object_name, fields=None, conditions=None, expiration=3600):
+        """Generate a presigned URL for uploading a file directly to S3."""
+        try:
+            response = s3_client.generate_presigned_post(
+                Bucket=bucket_name,
+                Key=object_name,
+                Fields=fields,
+                Conditions=conditions,
+                ExpiresIn=expiration
+            )
+            return response
+        except Exception as e:
+            print(f"Error creating presigned POST URL: {e}")
+            raise e
+
+
+    # Update existing cancel_upload route to handle client-side cancellation
     @blp.route('/cancel_upload/<sid>', methods=['POST'])
     def cancel_upload_by_sid(sid):
         """Cancel the upload for a specific session ID."""
@@ -320,12 +233,10 @@ def create_drive_blp(socketio):
                 s3_client = get_s3_client()
                 upload_info = ongoing_uploads[sid]
                 
-                # Use the tracker's cancel method if exists
-                tracker = upload_info.get('tracker')
-                if tracker:
-                    tracker.cancel()
+                # Mark as cancelled first
+                upload_info['cancelled'] = True
                 
-                # Attempt to delete partial upload
+                # Attempt to delete partial upload if it exists
                 path = upload_info['path']
                 try:
                     s3_client.delete_object(
@@ -334,13 +245,6 @@ def create_drive_blp(socketio):
                     )
                 except Exception as e:
                     print(f"Error removing partial upload: {e}")
-                
-                # Emit cancellation event
-                socketio.emit('upload_cancelled', {
-                    'message': 'Upload cancelled', 
-                    'filename': upload_info['filename'],
-                    'original_name': upload_info['original_filename']
-                }, room=sid)
                 
                 # Remove from ongoing uploads
                 del ongoing_uploads[sid]
@@ -352,7 +256,31 @@ def create_drive_blp(socketio):
                 return jsonify({'error': 'Error during cancellation'}), 500
         
         return jsonify({'error': 'No ongoing upload found'}), 404
-    
+
+
+    # Add Socket.IO event handlers for client progress updates
+    @socketio.on('client_upload_progress')
+    def handle_client_progress(data):
+        """Handle upload progress updates from client."""
+        # Optional: Log or process the progress data
+        # You can also broadcast this to other connected clients if needed
+        pass
+
+
+    @socketio.on('client_upload_complete')
+    def handle_client_upload_complete(data):
+        """Handle upload completion notification from client."""
+        # Update any server-side records
+        sid = request.sid
+        if sid in ongoing_uploads:
+            del ongoing_uploads[sid]
+        
+        # Emit to all connected clients that a new file was uploaded
+        socketio.emit('file_uploaded', {
+            'path': data.get('path'),
+            'filename': data.get('filename'),
+            'original_name': data.get('original_name')
+        })
     @blp.route('/download/<folder_name>/<original_filename>')
     def download(folder_name, original_filename):
         filename = f"{folder_name}/{original_filename}"

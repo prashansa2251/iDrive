@@ -63,7 +63,7 @@
     <div id="file-list" class="mt-3"></div>
     
     <div class="mt-3 d-flex justify-content-center gap-2">
-        <button id="uploadFiles" class="btn btn-primary no-loader" style="display: none;">Upload Files</button>
+        <button id="uploadFiles" class="btn btn-primary no-loader" style="display: none;"></button>
         <button id="showFiles" class="btn btn-success ml-2 no-loader" style="display: none;"></button>
         <button id="cancelFiles" class="btn btn-danger ml-2 no-loader" style="display: none;">Cancel</button>
     </div>
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let filenameMap = {}; // Maps both UUID and original filename to their counterparts
     let isUploading = false;
     let isCancelled = false;
-
+    let uploadController = null; // For storing AbortController
    // Prevent default dragging behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     dropArea.addEventListener(eventName, preventDefaults, false);
@@ -173,8 +173,205 @@ fileInput.addEventListener('change', handleFileSelection);
                 
     });
 
-    function cancelUpload(sid) {
-        fetch(`/cancel_upload/${sid}`, {
+    async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('filename', file.name);
+        formData.append('filesize', file.size);
+        formData.append('sid', socket.id);
+        
+        try {
+            // Step 1: Get presigned URL and upload parameters from your server
+            const presignedResponse = await fetch('/get_presigned_url', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!presignedResponse.ok) {
+                throw new Error('Failed to get upload URL');
+            }
+            
+            const presignedData = await presignedResponse.json();
+            
+            if (presignedData.message === 'No Storage') {
+                window.location.href = '/';
+                return;
+            }
+            
+            // Store the mapping for UUID filename and original filename
+            if (presignedData.filename) {
+                filenameMap[presignedData.filename] = file.name;
+                filenameMap[file.name] = presignedData.filename;
+            }
+            
+            // Step 2: Upload directly to S3 with progress tracking
+            uploadController = new AbortController();
+            const { signal } = uploadController;
+            
+            const uploadParams = new FormData();
+            // Add all fields from presignedData.fields
+            Object.keys(presignedData.fields).forEach(key => {
+                uploadParams.append(key, presignedData.fields[key]);
+            });
+            uploadParams.append('file', file); // The file must be the last field
+            
+            // Track upload progress
+            let uploadStartTime = Date.now();
+            let lastLoaded = 0;
+            let lastTime = uploadStartTime;
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', presignedData.url, true);
+            
+            xhr.upload.addEventListener('progress', function(event) {
+                if (event.lengthComputable) {
+                    // Calculate progress percentage
+                    const progress = Math.round((event.loaded / event.total) * 100);
+                    
+                    // Calculate speed
+                    const currentTime = Date.now();
+                    const timeDiff = (currentTime - lastTime) / 1000; // seconds
+                    
+                    if (timeDiff > 0.5) { // Update every half second
+                        const loadedSinceLast = event.loaded - lastLoaded;
+                        const speed = loadedSinceLast / timeDiff; // bytes per second
+                        
+                        // Format speed
+                        const speedStr = speed > 1_000_000 ? 
+                            `${(speed / 1_000_000).toFixed(2)} MB/s` : 
+                            `${(speed / 1_000).toFixed(2)} KB/s`;
+                        
+                        // Calculate ETA
+                        const remainingBytes = event.total - event.loaded;
+                        const eta = remainingBytes / speed;
+                        const minutes = Math.floor(eta / 60);
+                        const seconds = Math.floor(eta % 60);
+                        const etaStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        
+                        // Update UI
+                        updateProgressUI(file.name, progress, speedStr, etaStr, event.loaded);
+                        
+                        // Update tracking variables
+                        lastLoaded = event.loaded;
+                        lastTime = currentTime;
+                        
+                        // Also emit progress to server for logging/tracking
+                        socket.emit('client_upload_progress', {
+                            filename: presignedData.filename,
+                            original_name: file.name,
+                            progress: progress,
+                            uploaded_size: event.loaded,
+                            total_size: event.total
+                        });
+                    }
+                }
+            });
+            
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    // Upload successful
+                    const progressItem = document.querySelector(`.upload-progress-item[data-filename="${file.name}"]`);
+                    if (progressItem) {
+                        const statusEl = progressItem.querySelector('.upload-status');
+                        const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
+                        const cancelBtn = progressItem.querySelector('.delete-file');
+                        
+                        statusEl.textContent = 'Completed';
+                        statusEl.classList.replace('text-info', 'text-success');
+                        progressBar.style.width = '100%';
+                        cancelBtn.style.display = 'none';
+                    }
+                    
+                    // Notify server of successful upload
+                    socket.emit('client_upload_complete', {
+                        filename: presignedData.filename,
+                        original_name: file.name,
+                        path: presignedData.path
+                    });
+                    
+                    isUploading = false;
+                    processNextFile();
+                } else {
+                    // Handle error
+                    handleUploadError(file.name, 'Upload failed');
+                }
+            });
+            
+            xhr.addEventListener('error', function() {
+                handleUploadError(file.name, 'Network error');
+            });
+            
+            xhr.addEventListener('abort', function() {
+                handleUploadError(file.name, 'Upload cancelled');
+            });
+            
+            // Send the upload
+            xhr.send(uploadParams);
+            
+            // Update UI to show upload is active
+            const progressItem = document.querySelector(`.upload-progress-item[data-filename="${file.name}"]`);
+            if (progressItem) {
+                const statusEl = progressItem.querySelector('.upload-status');
+                statusEl.textContent = '0%';
+                statusEl.classList.replace('text-warning', 'text-info');
+                
+                const deleteBtn = progressItem.querySelector('.delete-file');
+                deleteBtn.classList.add('d-none');
+            }
+            
+            uploadFiles.style.display = 'none';
+            cancelFiles.style.display = 'block';
+            
+        } catch (error) {
+            console.error('Upload error:', error);
+            handleUploadError(file.name, error.message);
+        }
+    }
+    
+    // Helper function to update progress UI
+    function updateProgressUI(filename, progress, speedStr, etaStr, uploadedSize) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${filename}"]`);
+        
+        if (progressItem) {
+            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
+            const speedEl = progressItem.querySelector('.upload-speed');
+            const etaEl = progressItem.querySelector('.upload-eta');
+            const uploadedSizeEl = progressItem.querySelector('.uploaded-size');
+            const statusEl = progressItem.querySelector('.upload-status');
+            
+            progressBar.style.width = `${progress}%`;
+            speedEl.textContent = speedStr;
+            etaEl.textContent = etaStr;
+            uploadedSizeEl.textContent = formatFileSize(uploadedSize);
+            statusEl.textContent = `${progress}%`;
+        }
+    }
+    
+    // Helper function to handle upload errors
+    function handleUploadError(filename, errorMessage) {
+        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${filename}"]`);
+        
+        if (progressItem) {
+            const statusEl = progressItem.querySelector('.upload-status');
+            statusEl.textContent = `Error: ${errorMessage}`;
+            statusEl.classList.replace('text-info', 'text-danger');
+            
+            const cancelBtn = progressItem.querySelector('.delete-file');
+            cancelBtn.style.display = 'none';
+        }
+        
+        isUploading = false;
+        processNextFile();
+    }
+    
+    // Update cancel upload functionality
+    function cancelUpload() {
+        if (uploadController) {
+            uploadController.abort();
+            uploadController = null;
+        }
+        
+        // Also notify server about cancellation
+        fetch(`/cancel_upload/${socket.id}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -183,31 +380,21 @@ fileInput.addEventListener('change', handleFileSelection);
         .then(response => response.json())
         .then(data => {
             if (data.message === 'Upload cancelled successfully') {
-                window.location.href = '/'; // Redirect to index page
+                window.location.href = '/';
             }
         })
         .catch(error => {
             console.error('Cancel upload error:', error);
         });
     }
-
-    // Listen for upload cancellation events
-    socket.on('upload_cancelled', function(data) {
-        const progressItem = document.querySelector(`.upload-progress-item[data-sid="${data.sid}"]`);
-        
-        if (progressItem) {
-            const statusEl = progressItem.querySelector('.upload-status');
-            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
-            
-            statusEl.textContent = 'Cancelled';
-            statusEl.classList.replace('text-primary', 'text-danger');
-            progressBar.style.width = '0%';
-            
-            // Disable cancel button
-            progressItem.querySelector('.cancel-upload').disabled = true;
-        }
+    
+    // Update the cancel button event listener
+    cancelFiles.addEventListener('click', function() {
+        showFiles.style.display = 'none';
+        isCancelled = true;
+        cancelUpload();
     });
-
+    
 
     function handleDrop(e) {
         const files = e.dataTransfer.files;
@@ -231,7 +418,15 @@ fileInput.addEventListener('change', handleFileSelection);
         dropArea.style.height = '60%';
 
         // Show upload button
-        uploadFiles.style.display = fileQueue.length > 0 ? 'block' : 'none';
+        if (fileQueue.length > 0) {
+            warningText.classList.remove('d-none');
+            if (!isUploading) {
+                uploadFiles.style.display = 'none';
+                uploadFiles.textContent = 'Preparing...';
+                uploadFiles.disabled = true;
+            }
+            processNextFile();
+        }
     }
 
     function createProgressItem(file) {
@@ -287,14 +482,6 @@ fileInput.addEventListener('change', handleFileSelection);
         });
     }
 
-    // Upload button click handler
-    uploadFiles.addEventListener('click', function () {
-        if (fileQueue.length > 0) {
-            warningText.classList.remove('d-none');
-            uploadFiles.disabled = true;
-            processNextFile();
-        }
-    });
     function redirectToIndex() {
         cancelFiles.style.display = 'none';
         let countdown = 3; // Timer in seconds
@@ -341,95 +528,9 @@ fileInput.addEventListener('change', handleFileSelection);
         }
 
         isUploading = true;
-        uploadFiles.textContent = 'Preparing...';
-        uploadFiles.disabled = true;
+        
         uploadFile(file);
     }
-
-    function uploadFile(file) {
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('sid', socket.id);
-
-        fetch('/upload', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message === 'No Storage') {
-                window.location.href = '/'; // Redirect to index page
-            }
-            if (data.filename && data.original_name) {
-                filenameMap[data.filename] = data.original_name;
-                filenameMap[data.original_name] = data.filename;
-                cancelFiles.style.display = 'block'; // Show cancel button
-            }
-        })
-        .catch(error => {
-            console.error('Upload error:', error);
-        });
-    }
-
-    // Socket event for upload progress
-    socket.on('upload_progress', function (data) {
-        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
-        
-        if (progressItem) {
-            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
-            const speedEl = progressItem.querySelector('.upload-speed');
-            const etaEl = progressItem.querySelector('.upload-eta');
-            const uploadedSizeEl = progressItem.querySelector('.uploaded-size');
-            const statusEl = progressItem.querySelector('.upload-status');
-            uploadFiles.style.display = 'none';
-            cancelFiles.style.display = 'block';
-            showFiles.style.display = 'none';
-            progressBar.style.width = `${data.progress}%`;
-            speedEl.textContent = data.speed;
-            etaEl.textContent = data.eta;
-            uploadedSizeEl.textContent = formatFileSize(data.uploaded_size);
-            statusEl.textContent = `${data.progress}%`;
-
-        }
-    });
-
-    // Socket event for upload complete
-    socket.on('upload_complete', function (data) {
-        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
-        
-        if (progressItem) {
-            const statusEl = progressItem.querySelector('.upload-status');
-            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
-            const cancelBtn = progressItem.querySelector('.delete-file');
-            statusEl.textContent = 'Completed';
-            statusEl.classList.replace('text-info', 'text-success');
-            progressBar.style.width = '100%';
-            cancelBtn.style.display = 'none';
-        }
-
-        isUploading = false;
-        processNextFile();
-    });
-
-    // Socket event for upload error
-    socket.on('upload_error', function (data) {
-        const progressItem = document.querySelector(`.upload-progress-item[data-filename="${data.original_name}"]`);
-        
-        if (progressItem) {
-            const statusEl = progressItem.querySelector('.upload-status');
-            const progressBar = progressItem.querySelector('.upload-progress-bar-fill');
-            const cancelBtn = progressItem.querySelector('.delete-file');
-
-            statusEl.textContent = 'Error Uploading File !!';
-            statusEl.classList.replace('text-info', 'text-danger');
-            cancelBtn.style.display = 'none';
-        }
-
-        isUploading = false;
-        processNextFile();
-    });
-
     function formatFileSize(bytes) {
         if (bytes < 1024) return bytes + ' bytes';
         else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
