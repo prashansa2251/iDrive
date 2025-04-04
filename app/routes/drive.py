@@ -2,7 +2,7 @@ from datetime import datetime
 import uuid
 from flask import Blueprint, Response, jsonify
 from flask import request, redirect, url_for, render_template, flash, send_file
-from flask_login import current_user
+from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import os
 import tempfile
@@ -30,7 +30,9 @@ def create_drive_blp(socketio):
     blp = Blueprint('drive', 'drive')
     # print(f"Using endpoint: {s3_client.meta.endpoint_url}")
     # print(f"Using region: {s3_client.meta.region_name}")
+    
     @blp.route('/', methods=['GET', 'POST'])
+    @login_required
     def index():
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
@@ -84,59 +86,67 @@ def create_drive_blp(socketio):
                     user_folder_name = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
                     
                 if 'Contents' in response:
+                    
                     for item in response['Contents']:
-                        file_key = item['Key']
-                        if user_folder_name not in file_key:
-                            continue
-                        last_modified = None
-                        # Check if this is a subfolder
-                        sub_path = file_key.split('/', 1)[-1]
-                        if '/' in sub_path:
-                            folder_name = sub_path.split('/')[0]
-                            if folder_name not in folders:
-                                folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-                                last_modified = None
-                                if 'Contents' in folder_files:
-                                    last_modified = max(
-                                        [file['LastModified'] for file in folder_files['Contents']],
-                                        default=None
-                                    )
-                                folders.add(folder_name)
-                                items.append({
-                                    'name': folder_name,
-                                    'path': f"{folder_path}{folder_name}/",
-                                    'is_directory': True,
-                                    'upload_date': HelperClass.convert_to_ist(last_modified)
-                                })
-                            continue  # Skip further processing for folders
-                        
-                        # Process files
-                        original_filename = file_key.split('/')[-1]
-                        uuid_check = HelperClass.is_uuid_prefixed(original_filename)
-                        if uuid_check:
-                            filename = original_filename.split('_', 1)[1]
-                        if not original_filename:
-                            continue
+                        sizebytes=item['Size']
+                        if sizebytes:
+                            file_key = item['Key']
+                            if user_folder_name not in file_key:
+                                continue
+                            last_modified = None
+                            # Check if this is a subfolder
+                            sub_path = file_key.split('/', 1)[-1]
+                            if '/' in sub_path:
+                                folder_name = sub_path.split('/')[0]
+                                if folder_name not in folders:
+                                    folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+                                    last_modified = None
+                                    if 'Contents' in folder_files:
+                                        last_modified = max(
+                                            [file['LastModified'] for file in folder_files['Contents']],
+                                            default=None
+                                        )
+                                    folders.add(folder_name)
+                                    items.append({
+                                        'name': folder_name,
+                                        'path': f"{folder_path}{folder_name}/",
+                                        'is_directory': True,
+                                        'upload_date': HelperClass.convert_to_ist(last_modified)
+                                    })
+                                continue  # Skip further processing for folders
+                            
+                            # Process files
+                            original_filename = file_key.split('/')[-1]
+                            uuid_check = HelperClass.is_uuid_prefixed(original_filename)
+                            if uuid_check:
+                                filename = original_filename.split('_', 1)[1]
+                            if not original_filename:
+                                continue
 
-                        items.append({
-                            'name': filename,
-                            'original_filename':original_filename,
-                            'path': file_key,
-                            'is_directory': False,
-                            'size': HelperClass.format_file_size(item.get('Size', 0)),
-                            'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
-                        })
+                            items.append({
+                                'name': filename,
+                                'original_filename':original_filename,
+                                'sizebytes':sizebytes,
+                                'path': file_key,
+                                'is_directory': False,
+                                'size': HelperClass.format_file_size(item.get('Size', 0)),
+                                'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
+                            })
                         # Sort items by upload_date, newest first
-                    items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
-                        
-
-                return jsonify(items), 200
+                    if items:
+                        items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
+                    return jsonify(items), 200
 
             except Exception as e:
                 print(f"Error: {str(e)}")  # Log the error
                 return jsonify({'error': str(e)}), 500
-
-        return render_template('index.html', home_page=True,flash_message = message)
+            
+        if current_user.is_authenticated:
+            if current_user.isAdmin:
+                folder_path = ''
+            else:
+                folder_path = HelperClass.create_or_get_user_folder(get_s3_client(),current_user.id)
+        return render_template('index.html', home_page=True,flash_message = message,folder_path=folder_path)
     
     
     @blp.route('/upload', methods=['GET'])
@@ -216,7 +226,70 @@ def create_drive_blp(socketio):
         except Exception as e:
             print(f"Error creating presigned POST URL: {e}")
             raise e
-
+        
+    @blp.route('/get-presigned-url')
+    def get_presigned_url_download():
+        file_path = request.args.get('file_path')
+        
+        if not file_path:
+            return jsonify({"error": "No file path provided"}), 400
+        
+        try:
+            s3_client = get_s3_client()
+            
+            # Get original filename without prefixes
+            parts = file_path.split('/')
+            original_filename = parts[-1]
+            clean_filename = original_filename.split('_', 1)[1] if '_' in original_filename else original_filename
+            
+            # Generate pre-signed URL with a 1-hour expiration
+            url = s3_client.generate_presigned_url(
+                'get_object',
+                Params={
+                    'Bucket': BUCKET_NAME,
+                    'Key': file_path
+                },
+                ExpiresIn=3600  # URL valid for 1 hour
+            )
+            
+            return jsonify({
+                "url": url,
+                "filename": clean_filename
+            })
+        
+        except Exception as e:
+            return jsonify({"error": f"Error generating URL: {str(e)}"}), 500
+        
+    @blp.route('/bulk-delete', methods=['POST'])
+    def bulk_delete():
+        file_paths = request.json.get('files', [])
+        
+        if not file_paths:
+            return jsonify({"error": "No files selected"}), 400
+        
+        try:
+            s3_client = get_s3_client()
+            
+            # Prepare objects for deletion
+            objects_to_delete = [{'Key': path} for path in file_paths]
+            
+            # Delete objects from S3
+            s3_client.delete_objects(
+                Bucket=BUCKET_NAME,
+                Delete={
+                    'Objects': objects_to_delete,
+                    'Quiet': False
+                }
+            )
+            flash('Files deleted successfully!')
+            return jsonify({
+                "success": True,
+                "message": f"Successfully deleted {len(file_paths)} files",
+                "deleted_files": file_paths
+            })
+        
+        except Exception as e:
+            return jsonify({"error": f"Error deleting files: {str(e)}"}), 500
 
     # Update existing cancel_upload route to handle client-side cancellation
     @blp.route('/cancel_upload/<sid>', methods=['POST'])

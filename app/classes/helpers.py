@@ -98,8 +98,11 @@ class HelperClass():
             folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
             
         used_storage = 0  
+        if not folder_files['KeyCount']:
+            storage_info = {'used':'0 MB','allocated':allocated_storage,'danger':False,'percentage':0}
+            return storage_info
         for file in folder_files['Contents']:
-                used_storage += file.get('Size', 0)
+            used_storage += file.get('Size', 0)
                 
         used_storage = cls.format_file_size(used_storage)
         
@@ -173,7 +176,9 @@ class HelperClass():
         folder_name = cls.create_or_get_user_folder(s3_client,user_id)
         folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
         allocated_storage_in_bytes = int(allocated_storage*1099511627776)  
-        used_storage_in_bytes = 0  
+        used_storage_in_bytes = 0 
+        if not used_storage_in_bytes:
+            return True,''
         for file in folder_files['Contents']:
                 used_storage_in_bytes += file.get('Size', 0)
         buffer_10_kb_in_bytes = 10240 # to insure 10 KB is left after upload
