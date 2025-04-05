@@ -38,116 +38,229 @@ def create_drive_blp(socketio):
             return redirect(url_for('auth.login'))
         message = HelperClass.get_message()
         if request.method == 'POST':
-
             try:
                 s3_client = get_s3_client()
                 # Get the requested folder path from JSON
                 data = request.get_json()
                 folder_path = data.get('path', '')
+                
+                # If a specific folder path is provided, this is a directory browsing request
+                if folder_path:
+                    # Handle directory browsing
+                    response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
+                    folders = set()  # To store unique folder names
+                    items = []
+                    
+                    if 'Contents' in response:
+                        for item in response['Contents']:
+                            sizebytes = item['Size']
+                            if sizebytes:
+                                file_key = item['Key']
+                                # Skip the folder entry itself (ends with /)
+                                if file_key == folder_path:
+                                    continue
+                                    
+                                # Extract the relative path after the folder prefix
+                                relative_path = file_key[len(folder_path):]
+                                
+                                # Check if this is a subfolder entry
+                                if '/' in relative_path:
+                                    subfolder_name = relative_path.split('/')[0]
+                                    if subfolder_name and subfolder_name not in folders:
+                                        folders.add(subfolder_name)
+                                        # Get information about the subfolder
+                                        subfolder_prefix = folder_path + subfolder_name + "/"
+                                        subfolder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=subfolder_prefix)
+                                        
+                                        last_modified = None
+                                        if 'Contents' in subfolder_files:
+                                            for file in subfolder_files['Contents']:
+                                                if last_modified is None or file['LastModified'] > last_modified:
+                                                    last_modified = file['LastModified']
+                                        
+                                        items.append({
+                                            'name': subfolder_name,
+                                            'path': subfolder_prefix,
+                                            'is_directory': True,
+                                            'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
+                                        })
+                                    continue  # Skip further processing for subfolders
+                                
+                                # Process regular files (no additional / in the path)
+                                original_filename = file_key.split('/')[-1]
+                                if not original_filename:
+                                    continue
+                                    
+                                uuid_check = HelperClass.is_uuid_prefixed(original_filename)
+                                filename = original_filename.split('_', 1)[1] if uuid_check else original_filename
 
-                if current_user.isAdmin and not folder_path:
-                    # Admin sees only user directories
-                    response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Delimiter='/')
-                    user_folders = []
-                    if 'CommonPrefixes' in response:
-                        for prefix in response['CommonPrefixes']:
-                            folder_name = prefix['Prefix'].rstrip('/')
-                            config = UserConfig.find_by_folder_name(folder_name)
-                            allocated_storage = HelperClass.format_allocated_storage(float(config.max_size))
-                            parts = folder_name.split('_', 1)
-                            if len(parts) == 2 and parts[0].isdigit():
-                                folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+                                items.append({
+                                    'name': filename,
+                                    'original_filename': original_filename,
+                                    'sizebytes': sizebytes,
+                                    'path': file_key,
+                                    'is_directory': False,
+                                    'size': HelperClass.format_file_size(item.get('Size', 0)),
+                                    'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
+                                })
                         
-                                last_modified = None
-                                total_size = 0  # Initialize total size
-
+                        # Sort items by upload_date, newest first
+                        if items:
+                            items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
+                        return jsonify(items), 200
+                
+                else:
+                    # Main folder listing - use folder_array to determine what to show
+                    folder_array,superadmin = HelperClass.get_folder_array(current_user.id)
+                    user_folder_items = []
+                    
+                    if current_user.isAdmin and superadmin:
+                        # Admin with no specific folders - show all user directories
+                        response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Delimiter='/')
+                        if 'CommonPrefixes' in response:
+                            user_folders=[]
+                            for prefix in response['CommonPrefixes']:
+                                folder_name = prefix['Prefix'].rstrip('/')
+                                config = UserConfig.find_by_folder_name(folder_name)
+                                if config:
+                                    allocated_storage = HelperClass.format_allocated_storage(float(config.max_size))
+                                    parts = folder_name.split('_', 1)
+                                    if len(parts) == 2 and parts[0].isdigit():
+                                        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+                                        last_modified = None
+                                        total_size = 0
+                                        
+                                        if 'Contents' in folder_files:
+                                            for file in folder_files['Contents']:
+                                                if last_modified is None or file['LastModified'] > last_modified:
+                                                    last_modified = file['LastModified']
+                                                total_size += file.get('Size', 0)
+                                        
+                                        user_folders.append({
+                                            'name': parts[1],
+                                            'path': folder_name + "/",  # Add trailing slash to ensure proper navigation
+                                            'is_directory': True,
+                                            'size': HelperClass.format_file_size(total_size) if total_size else None,
+                                            'allocated_storage': allocated_storage,
+                                            'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
+                                        })
+                        return jsonify(user_folders), 200
+                    
+                    else:
+                        # Regular user or admin with specific folders in array
+                        if not folder_array:
+                            # Create user folder if not in array
+                            user_folder = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
+                            folder_array = [user_folder]
+                        
+                        # First, list files and folders in the user's own folder (position 0)
+                        user_folder = folder_array[0]
+                        user_folder_path = user_folder + "/"  # Ensure trailing slash
+                        response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=user_folder_path)
+                        
+                        if 'Contents' in response:
+                            subfolders = set()
+                            
+                            for item in response['Contents']:
+                                sizebytes = item['Size']
+                                file_key = item['Key']
+                                
+                                # Skip the folder entry itself
+                                if file_key == user_folder_path:
+                                    continue
+                                    
+                                # Extract relative path after the user folder prefix
+                                relative_path = file_key[len(user_folder_path):]
+                                
+                                # Check if this is a subfolder
+                                if '/' in relative_path:
+                                    subfolder_name = relative_path.split('/')[0]
+                                    if subfolder_name and subfolder_name not in subfolders:
+                                        subfolders.add(subfolder_name)
+                                        subfolder_prefix = user_folder_path + subfolder_name + "/"
+                                        subfolder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=subfolder_prefix)
+                                        
+                                        last_modified = None
+                                        if 'Contents' in subfolder_files:
+                                            for file in subfolder_files['Contents']:
+                                                if last_modified is None or file['LastModified'] > last_modified:
+                                                    last_modified = file['LastModified']
+                                        
+                                        user_folder_items.append({
+                                            'name': subfolder_name,
+                                            'path': subfolder_prefix,
+                                            'is_directory': True,
+                                            'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
+                                        })
+                                    continue
+                                
+                                # Process regular files
+                                if sizebytes > 0:
+                                    original_filename = file_key.split('/')[-1]
+                                    if not original_filename:
+                                        continue
+                                        
+                                    uuid_check = HelperClass.is_uuid_prefixed(original_filename)
+                                    filename = original_filename.split('_', 1)[1] if uuid_check else original_filename
+                                    
+                                    user_folder_items.append({
+                                        'name': filename,
+                                        'original_filename': original_filename,
+                                        'sizebytes': sizebytes,
+                                        'path': file_key,
+                                        'is_directory': False,
+                                        'size': HelperClass.format_file_size(item.get('Size', 0)),
+                                        'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
+                                    })
+                        
+                        # Then add other folders from the folder_array (positions 1+)
+                        for folder_name in folder_array[1:]:
+                            folder_path = folder_name + "/"  # Ensure trailing slash
+                            folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
+                            
+                            last_modified = None
+                            total_size = 0
+                            allocated_storage = UserConfig.find_by_folder_name(folder_name).max_size
+                            allocated_storage = HelperClass.format_allocated_storage(float(allocated_storage))
+                            if 'Contents' in folder_files:
+                                
                                 for file in folder_files['Contents']:
                                     if last_modified is None or file['LastModified'] > last_modified:
-                                        last_modified = file['LastModified']  # Keep the latest modified date
-                                    
-                                    total_size += file.get('Size', 0)  # Add file size (handle missing 'Size')
-                                    
-                                user_folders.append({
-                                    'name': parts[1],
-                                    'path': folder_name,
-                                    'is_directory': True,
-                                    'size':HelperClass.format_file_size(total_size) if total_size else None,
-                                    'allocated_storage':allocated_storage,
-                                    'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
-                                })
-                    return jsonify(user_folders), 200
-
-                # Fetch directories and files inside the folder
-                response = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_path)
-                folders = set()  # To store unique folder names
-                items = []
-                user_folder_name = folder_path
-                if not folder_path:
-                    user_folder_name = HelperClass.create_or_get_user_folder(s3_client,current_user.id)
-                    
-                if 'Contents' in response:
-                    
-                    for item in response['Contents']:
-                        sizebytes=item['Size']
-                        if sizebytes:
-                            file_key = item['Key']
-                            if user_folder_name not in file_key:
-                                continue
-                            last_modified = None
-                            # Check if this is a subfolder
-                            sub_path = file_key.split('/', 1)[-1]
-                            if '/' in sub_path:
-                                folder_name = sub_path.split('/')[0]
-                                if folder_name not in folders:
-                                    folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-                                    last_modified = None
-                                    if 'Contents' in folder_files:
-                                        last_modified = max(
-                                            [file['LastModified'] for file in folder_files['Contents']],
-                                            default=None
-                                        )
-                                    folders.add(folder_name)
-                                    items.append({
-                                        'name': folder_name,
-                                        'path': f"{folder_path}{folder_name}/",
-                                        'is_directory': True,
-                                        'upload_date': HelperClass.convert_to_ist(last_modified)
-                                    })
-                                continue  # Skip further processing for folders
+                                        last_modified = file['LastModified']
+                                    total_size += file.get('Size', 0)
                             
-                            # Process files
-                            original_filename = file_key.split('/')[-1]
-                            uuid_check = HelperClass.is_uuid_prefixed(original_filename)
-                            if uuid_check:
-                                filename = original_filename.split('_', 1)[1]
-                            if not original_filename:
-                                continue
-
-                            items.append({
-                                'name': filename,
-                                'original_filename':original_filename,
-                                'sizebytes':sizebytes,
-                                'path': file_key,
-                                'is_directory': False,
-                                'size': HelperClass.format_file_size(item.get('Size', 0)),
-                                'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
+                            parts = folder_name.split('_', 1)
+                            display_name = parts[1] if len(parts) == 2 and parts[0].isdigit() else folder_name
+                            
+                            user_folder_items.append({
+                                'name': display_name,
+                                'path': folder_path,  # Use folder path with trailing slash
+                                'is_directory': True,
+                                'size': HelperClass.format_file_size(total_size) if total_size else None,
+                                'allocated_storage': allocated_storage,
+                                'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
                             })
+                        
                         # Sort items by upload_date, newest first
-                    if items:
-                        items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
-                    return jsonify(items), 200
-
+                        if user_folder_items:
+                            user_folder_items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
+                        
+                        return jsonify(user_folder_items), 200
+            
             except Exception as e:
                 print(f"Error: {str(e)}")  # Log the error
                 return jsonify({'error': str(e)}), 500
-            
+        
+        # GET request handling - render the template
         if current_user.is_authenticated:
-            if current_user.isAdmin:
+            folder_array,superadmin = HelperClass.get_folder_array(current_user.id)
+            if current_user.isAdmin and not folder_array:
                 folder_path = ''
             else:
-                folder_path = HelperClass.create_or_get_user_folder(get_s3_client(),current_user.id)
-        return render_template('index.html', home_page=True,flash_message = message,folder_path=folder_path)
-    
+                folder_path = folder_array[0] + "/" if folder_array else HelperClass.create_or_get_user_folder(get_s3_client(), current_user.id) + "/"
+        
+        return render_template('index.html', home_page=True, flash_message=message, folder_path=folder_path)
+        
     
     @blp.route('/upload', methods=['GET'])
     def upload_get():

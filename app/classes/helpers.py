@@ -196,3 +196,18 @@ class HelperClass():
                 return f"{round(storage_tb * 1024 * 1024)} MB"
             return f"{round(storage_tb * 1024)} GB"  # Convert TB to GB
         return f"{storage_tb} TB"  # Keep TB as it is, rounded
+    
+    @classmethod
+    def get_folder_array(cls,user_id):
+        """Get folder name based on user ID."""
+        user_folder = UserConfig.get_folder_name(user_id)
+        superadmin = User.check_superadmin(user_id)
+        if superadmin:
+            return [user_folder,],superadmin
+        users_under = User.get_users_under_superuser(user_id)
+        
+        folder_array = [user_folder,]
+        if users_under:
+            for user in users_under:
+                folder_array.append(user['folder_name'])
+        return folder_array,superadmin

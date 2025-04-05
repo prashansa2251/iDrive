@@ -15,7 +15,7 @@ class UserConfig(db.Model):
         self.folder_name = folder_name
         self.max_size = max_size
         self.user_id = user_id
-        storage_upgraded = storage_upgraded
+        self.storage_upgraded = storage_upgraded
 
     def json(self):
         return {
