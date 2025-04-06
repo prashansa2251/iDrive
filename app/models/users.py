@@ -1,5 +1,5 @@
 from flask_login import UserMixin
-from sqlalchemy import ARRAY, case, func
+from sqlalchemy import ARRAY, case, func, text
 from app.db import db
 from passlib.hash import pbkdf2_sha256
 
@@ -50,40 +50,36 @@ class User(UserMixin, db.Model):
     @classmethod
     def check_superadmin(cls, user_id):
         query = cls.query.filter_by(id=user_id).first()
-        if query.superuser_id == -1:
+        if query.superuser_id == 0:
             return True
         else:
             return False
 
     @classmethod
-    def get_users_under_superuser(cls, user_id):
-        query = db.session.query(
-            cls.id,
-            cls.username,
-            cls.isActive,
-            cls.email,
-            cls.superuser_id,
-            UserConfig.folder_name,
-            UserConfig.storage_upgraded,
-            UserConfig.user_id,
-            UserConfig.id,
-            UserConfig.max_size
-            ).filter_by(superuser_id=user_id).join(UserConfig,cls.id==UserConfig.user_id).all()
-        if query:
-            json_data = [{'id':item.id,
-                    'username':item.username,
-                    'isActive':item.isActive,
-                    'email':item.email,
-                    'superuser_id':item.superuser_id,
-                    'folder_name':item.folder_name,
-                    'storage_upgraded':item.storage_upgraded,
-                    'user_id':item.user_id,
-                    'config_id':item.id,
-                    'max_size':item.max_size
-                        } for item in query]
-            return json_data
-
-        return None
+    def get_users_data(cls, user_id_array):
+        json_data = []
+        for id in user_id_array:
+            query = db.session.query(
+                cls.id,
+                cls.username,
+                cls.isActive,
+                cls.email,
+                UserConfig.folder_name,
+                UserConfig.storage_upgraded,
+                UserConfig.user_id,
+                UserConfig.max_size
+            ).filter_by(id=id).join(UserConfig,cls.id==UserConfig.user_id).first()
+            if query:
+                json_data.append({'id':query.id,
+                        'username':query.username,
+                        'is_active':query.isActive,
+                        'email':query.email,
+                        'folder_name':query.folder_name,
+                        'storage_upgraded':query.storage_upgraded,
+                        'user_id':query.user_id,
+                        'max_size':query.max_size
+                            })
+        return json_data
     
     @classmethod
     def find_by_email(cls, email):
@@ -144,4 +140,29 @@ class User(UserMixin, db.Model):
         user.isActive = not user.isActive
         user.update_db()
         return True
+    
+    @classmethod
+    def get_subordinates(cls,user_id,folders):
+        query = text("""
+            WITH RECURSIVE subordinates AS (
+                SELECT id
+                FROM users
+                WHERE superuser_id = :user_id
+                
+                UNION ALL
+                
+                SELECT u.id
+                FROM users u
+                INNER JOIN subordinates s ON u.superuser_id = s.id
+            )
+            SELECT id FROM subordinates;
+        """)
+        if folders:
+            id_array = [user_id,]
+        else:
+            id_array = []
+        result = db.session.execute(query, {"user_id": user_id})
+        for row in result:
+            id_array.append(row.id)
+        return id_array
     

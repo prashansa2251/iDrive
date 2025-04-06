@@ -1,15 +1,23 @@
 import math
 import os
 
-from flask import get_flashed_messages
+import boto3
+from flask import flash, get_flashed_messages
 from flask_login import current_user
 from app.models.user_config import UserConfig
 from datetime import datetime, timezone,timedelta
-
 from app.models.users import User
 
 BUCKET_NAME = os.environ.get('WASABI_BUCKET_NAME', 'your-bucket-name')
-
+# Configure S3 client for Backblaze B2
+def get_s3_client():
+        return boto3.client(
+            's3',
+            endpoint_url=f'https://s3.{os.getenv("WASABI_REGION")}.wasabisys.com',
+            aws_access_key_id=os.getenv('WASABI_ACCESS_KEY'),
+            aws_secret_access_key=os.getenv('WASABI_SECRET_KEY'),
+            region_name=os.getenv('WASABI_REGION')
+        )
 class HelperClass():
     @classmethod
     def get_version(cls):
@@ -199,15 +207,105 @@ class HelperClass():
     
     @classmethod
     def get_folder_array(cls,user_id):
-        """Get folder name based on user ID."""
+        """Get folders name based on user ID."""
         user_folder = UserConfig.get_folder_name(user_id)
         superadmin = User.check_superadmin(user_id)
         if superadmin:
             return [user_folder,],superadmin
-        users_under = User.get_users_under_superuser(user_id)
-        
-        folder_array = [user_folder,]
-        if users_under:
-            for user in users_under:
+        subordinates = User.get_subordinates(user_id,True)
+        folder_array = []
+        if subordinates:
+            users_data = User.get_users_data(subordinates)
+            for user in users_data:
                 folder_array.append(user['folder_name'])
         return folder_array,superadmin
+    
+    
+    @classmethod
+    def get_users_data(cls,user_id):
+        subordinates = User.get_subordinates(user_id,False)
+        users_data = User.get_users_data(subordinates)
+        total_storage_allocated = UserConfig.get_allocated_storage(user_id)
+        total_storage_occupied = 0
+        for user in users_data:
+            user['storage_used'] = cls.get_formatted_storage(cls.get_user_storage(user['user_id'])['used'])[0]
+            user['storage_allocated'],user['storage_unit'] = cls.get_formatted_storage(user['max_size'])
+            total_storage_occupied += int(user['max_size'])
+        total_storage_occupied = total_storage_occupied
+        total_storage_remaining = int(total_storage_allocated) - int(total_storage_occupied)
+        total_storage = {'remaining':cls.get_formatted_storage(total_storage_remaining),
+                         'allocated':cls.get_formatted_storage(total_storage_allocated),
+                         'occupied':cls.get_formatted_storage(total_storage_occupied),
+                         'percentage': int((total_storage_occupied/total_storage_allocated)*100)}
+        return users_data,total_storage
+            
+
+    @classmethod
+    def get_formatted_storage(cls,storage):
+        storage_int = int(storage)
+        if storage_int < 1024:
+            return str(storage_int)+' MB','MB'
+        elif storage_int >= 1024:
+            return str(int(storage_int/1024))+' GB','GB'
+        
+    @classmethod
+    def update_user_storage(cls,data):
+        storage_data = data['storage_data']
+        original_unit = data['original_unit']
+        updated_unit = data['storage_unit']
+        updated_storage = data['storage_updated']
+        original_storage=data['original_storage']
+        
+        if original_unit == 'GB' and updated_unit == 'GB':
+            original_storage = int(original_storage) * 1024
+            updated_storage = int(updated_storage) * 1024
+        elif original_unit == 'GB' and updated_unit == 'MB':
+            original_storage = int(original_storage) * 1024
+        elif original_unit == 'MB' and updated_unit == 'GB':
+            updated_storage = int(updated_storage) * 1024
+        elif original_unit == 'MB' and updated_unit == 'MB':
+            pass
+        
+        diff = updated_storage - original_storage
+        if diff == 0:
+            flash('No changes made to storage allocation!')
+            return True
+        
+        if diff < 0:
+            user_occupied_space = cls.get_user_storage(data['user_id'])
+            if user_occupied_space['used'] > updated_storage:
+                flash('Cannot reduce storage allocation below used space!')
+                return False
+        
+        remaining_storage = storage_data['remaining'][0]
+        remaining_storage_unit = storage_data['remaining'][1]
+        if remaining_storage_unit == 'GB':
+            remaining_storage = int(remaining_storage[:-3]) * 1024
+            
+        elif remaining_storage_unit == 'MB':
+            remaining_storage = int(remaining_storage[:-3])
+
+        if remaining_storage < diff:
+            flash('Not enough storage available to allocate!')
+            return False
+        else:
+            user_update = UserConfig.update_storage(data['user_id'],updated_storage)
+            if user_update:
+                flash('Storage updated successfully!')
+                return True
+            else:
+                flash('Error updating storage allocation!')
+                return False
+    
+    @classmethod
+    def get_user_storage(cls,user_id):
+        s3_client = get_s3_client()
+        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
+        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+        used_storage_in_bytes = 0 
+        for file in folder_files['Contents']:
+                used_storage_in_bytes += file.get('Size', 0)
+        used_storage_mb = int(used_storage_in_bytes / (1024 * 1024)) # Convert bytes to MB
+        allocated_storage = UserConfig.get_allocated_storage(user_id)
+        storage ={'used':used_storage_mb,'allocated':allocated_storage,'remaining':allocated_storage - used_storage_mb}
+        return storage

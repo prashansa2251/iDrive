@@ -148,12 +148,13 @@ def manage_users():
         else:
             flash("Only admin can reset password!")
     if current_user.isAdmin:
-        users = User.get_all()
-        # states = State.get_all()
+        
+        users,storage = HelperClass.get_users_data(current_user.id)
         message = HelperClass.get_message()
         return render_template('auth/manage_users.html',
                             flash_message = message,
                             users=users,
+                            storage_data=json.dumps(storage),
                             user_data=json.dumps(users))
     else: 
         flash('You must be admin to view this page!')
@@ -166,11 +167,9 @@ def update_storage():
         if current_user.isAdmin:
             if request.method=='POST':
                 json_data = request.json
-                user_update = UserConfig.update_storage(json_data['user_id'],json_data['storage_volume'])
-                if user_update:
-                    return jsonify({'response':True})
-                else:
-                    return jsonify({'response':False})
+                user_update = HelperClass.update_user_storage(json_data)
+                return jsonify({'redirect_url':url_for('auth.manage_users')})
+                
         flash('You must be admin to view this page!')
         return redirect(url_for('auth.login'))
     flash('You must be logged in to view this page!')

@@ -53,7 +53,7 @@
                             <td class="align-middle fs-7">{{ user.username }}</td>
                             <td class="align-middle fs-7">{{ user.email }}</td>
                             <td class="text-center align-middle">
-                                <span class="badge fs-8 text-center bg-info"> {%if user.storage_volume %}{{user.storage_volume}}{%else%}0.0{%endif%} TB</span>
+                                <span class="badge fs-8 text-center bg-info">{{user.storage_used}}/{{user.storage_allocated}}</span>
                             </td>
                             <td class="text-center align-middle">
                                 <span class="badge fs-8 text-center {{ 'bg-success' if user.is_active else 'bg-danger' }}">
@@ -67,7 +67,8 @@
                                             data-bs-target="#storageModal"
                                             data-user-id="{{ user.id }}"
                                             data-username="{{ user.username }}"
-                                            data-current-storage="{{ user.storage_volume }}">
+                                            data-storage-unit="{{ user.storage_unit }}"
+                                            data-current-storage="{{ user.storage_allocated }}">
                                         <i class="fa-solid fa-hard-drive me-1"></i>Assign Storage
                                     </button>
                                     <button class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }} toggle-user-status fs-8"
@@ -102,25 +103,37 @@
             <div class="modal-body">
                 <form id="storageAssignmentForm">
                     <input type="hidden" id="storageUserId" name="user_id">
+                    
                     <div class="mb-3">
                         <label for="storageUsername" class="form-label fs-7">Username</label>
-                        <input type="text" class="form-control" id="storageUsername" readonly>
+                        <input type="text" class="form-control" id="storageUsername" readonly disabled>
                     </div>
+
                     <div class="mb-3">
-                        <label for="storageVolume" class="form-label fs-7">Storage Volume (TB)</label>
-                        <input type="number" class="form-control" id="storageVolume" name="storage_volume" 
-                                step="0.1" required>
-                        <div class="form-text fs-8">Enter storage volume between 0-10 TB</div>
+                        <label class="form-label fs-7">Storage Volume</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="storageAllocated" name="storage_allocated" 
+                                   step="1" min="1" required>
+                            <select class="form-select" id="storageUnit" name="storage_unit" style="max-width: 120px;">
+                                <option value="MB" selected>MB</option>
+                                <option value="GB">GB</option>
+                            </select>
+                        </div>
                     </div>
+
                     <div class="mb-3 d-flex justify-content-center">
                         <button type="submit" class="btn btn-primary fs-7">Assign Storage</button>
                     </div>
-                    
+
                 </form>
             </div>
         </div>
     </div>
 </div>
+<input type="hidden" name="storage_data" id="storageData" value="{{ storage_data }}">
+{% endblock %}
+
+{% block styles %}
 {% endblock %}
 
 {% block scripts %}
@@ -160,20 +173,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const button = event.relatedTarget;
         const userId = button.getAttribute('data-user-id');
         const username = button.getAttribute('data-username');
-        const currentStorage = button.getAttribute('data-current-storage');
+        let currentStorage = button.getAttribute('data-current-storage');
+        window.currentStorage = currentStorage.slice(0, -3); // Omit the last three characters
+        console.log(currentStorage);
+        window.storageUnit = button.getAttribute('data-storage-unit');
 
         document.getElementById('storageUserId').value = userId;
         document.getElementById('storageUsername').value = username;
-        document.getElementById('storageVolume').value = currentStorage;
+        document.getElementById('storageAllocated').value = window.currentStorage;
+        document.getElementById('storageUnit').value = button.getAttribute('data-storage-unit');
+        document.getElementById('storageUnit').setAttribute('data-storage-unit', window.storageUnit);
     });
 
     // Storage Assignment Form Submission
     const storageForm = document.getElementById('storageAssignmentForm');
     storageForm.addEventListener('submit', function(event) {
-        event.preventDefault();
         
+        event.preventDefault();
+        toggleSpinner();
         const userId = document.getElementById('storageUserId').value;
-        const storageVolume = document.getElementById('storageVolume').value;
+        const storageUpdated = document.getElementById('storageAllocated').value;
+        const storageUnit = document.getElementById('storageUnit').value;
+        const storage_data = JSON.parse(document.getElementById('storageData').value);
+        const originalStorage = window.currentStorage;
+        const originalUnit = window.storageUnit;
 
         // Send JSON object for storage update
         fetch('/auth/update_storage', {
@@ -183,26 +206,17 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ 
                 user_id: userId, 
-                storage_volume: parseFloat(storageVolume) 
+                original_storage: parseFloat(originalStorage),
+                storage_updated: parseFloat(storageUpdated),
+                storage_unit: storageUnit,
+                storage_data: storage_data,
+                original_unit: originalUnit 
             })
         })
         .then(response => response.json())
         .then(data => {
-            if (data.response) {
-                // Update table cell with new storage volume
-                const row = document.querySelector(`.storage-assign-btn[data-user-id="${userId}"]`).closest('tr');
-                row.cells[2].innerHTML = `<span class="badge fs-7 bg-info">${storageVolume} TB</span>`;
-                
-                // Close modal
-                bootstrap.Modal.getInstance(storageModal).hide();
-                
-                // Show success toast
-                toggleSpinner();
-                showToast('Storage updated successfully !!');
-            } else {
-                toggleSpinner();
-                showToast('Failed to update storage !!');
-            }
+                    toggleSpinner();
+                    window.location.href = data.redirect_url;
         })
         .catch(error => {
             console.error('Error:', error);
