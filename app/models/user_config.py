@@ -5,7 +5,7 @@ class UserConfig(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     folder_name = db.Column(db.String(100))
-    max_size = db.Column(db.String(100)) # in MB
+    max_size = db.Column(db.Integer()) # in MB
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     storage_upgraded = db.Column(db.Boolean,default='False')
     

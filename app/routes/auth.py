@@ -18,7 +18,6 @@ def register():
         if user:
             flash('Email already registered!')
             return redirect(url_for('auth.register'))
-
         user = User(username,email.lower(),password,False,False)
         user.set_password(password)
         user.save_to_db()
@@ -97,8 +96,8 @@ def change_password():
 @login_required
 def upgrade_storage():
     s3_client = get_s3_client()
-    storage_info = HelperClass.check_remaining_storage(s3_client,current_user.id)
-    storage_info['upgrade_amount'] = str(int(int(storage_info['allocated'][:-3])*1.05)) + storage_info['allocated'][-3:]
+    storage_info = HelperClass.get_storage_status(current_user.id)
+    storage_info['upgrade_amount'] = str(float(float(storage_info['allocated'][:-3])*1.05)) + storage_info['allocated'][-3:]
     storage_upgraded = False
     return render_template('auth/upgrade_storage.html',storage_info = storage_info,storage_upgraded=storage_upgraded)
 
@@ -150,10 +149,14 @@ def manage_users():
     if current_user.isAdmin:
         
         users,storage = HelperClass.get_users_data(current_user.id)
+        superusers = User.get_superusers(current_user.id)
+        storage_remaining = storage['remaining'][0]
         message = HelperClass.get_message()
         return render_template('auth/manage_users.html',
                             flash_message = message,
+                            superusers=superusers,
                             users=users,
+                            storage_remaining=storage_remaining,
                             storage_data=json.dumps(storage),
                             user_data=json.dumps(users))
     else: 
@@ -168,6 +171,44 @@ def update_storage():
             if request.method=='POST':
                 json_data = request.json
                 user_update = HelperClass.update_user_storage(json_data)
+                return jsonify({'redirect_url':url_for('auth.manage_users')})
+                
+        flash('You must be admin to view this page!')
+        return redirect(url_for('auth.login'))
+    flash('You must be logged in to view this page!')
+    return redirect(url_for('auth.login'))
+
+@blp.route('/update_reporting',methods=['POST'])
+@login_required
+def update_reporting():
+    if current_user.is_authenticated:
+        if current_user.isAdmin:
+            if request.method=='POST':
+                json_data = request.json
+                user_update = User.update_reporting(json_data['user_id'],json_data['reporting_to_id'])
+                if user_update:
+                    flash('Reporting user updated successfully!')
+                else:
+                    flash('There was an error updating reporting user!')
+                return jsonify({'redirect_url':url_for('auth.manage_users')})
+                
+        flash('You must be admin to view this page!')
+        return redirect(url_for('auth.login'))
+    flash('You must be logged in to view this page!')
+    return redirect(url_for('auth.login'))
+
+@blp.route('/toggle_admin_status',methods=['POST'])
+@login_required
+def toggle_admin_status():
+    if current_user.is_authenticated:
+        if current_user.isAdmin:
+            if request.method=='POST':
+                json_data = request.json
+                user_update = User.toggle_admin_status(json_data['user_id'])
+                if user_update:
+                    flash('User admin status updated successfully!')
+                else:
+                    flash('There was an error updating user admin status!')
                 return jsonify({'redirect_url':url_for('auth.manage_users')})
                 
         flash('You must be admin to view this page!')

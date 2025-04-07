@@ -42,9 +42,11 @@
                         <tr>
                             <th>Username</th>
                             <th>Email</th>
-                            <th class="text-center">Storage Allocated</th>
+                            <th class="">Reporting To</th>
+                            <th class="text-center">Storage</th>
                             <th class="text-center">Status</th>
-                            <th>Actions</th>
+                            <th class="text-center">Admin Controls</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,15 +54,24 @@
                         <tr>
                             <td class="align-middle fs-7">{{ user.username }}</td>
                             <td class="align-middle fs-7">{{ user.email }}</td>
+                            <td class="align-middle fs-7">{{ user.reporting_to }} ({{user.reporting_to_email}})</td>
                             <td class="text-center align-middle">
-                                <span class="badge fs-8 text-center bg-info">{{user.storage_used}}/{{user.storage_allocated}}</span>
+                                <span class="badge fs-8 text-center bg-info">{{user.storage_used}} / {{user.storage_allocated}}</span>
                             </td>
                             <td class="text-center align-middle">
                                 <span class="badge fs-8 text-center {{ 'bg-success' if user.is_active else 'bg-danger' }}">
                                     {{ 'Active' if user.is_active else 'Inactive' }}
                                 </span>
                             </td>
-                            <td>
+                            <td class="align-middle text-center fs-6">
+                                <div class="form-check d-flex justify-content-center form-switch">
+                                    <input class="form-check-input toggle-admin-status" type="checkbox" role="switch" id="" 
+                                    {%if user.is_admin%}checked{%endif%}
+                                    data-user-id="{{ user.id }}"
+                                    data-current-status="{{ user.is_admin }}">
+                                </div>
+                            </td>
+                            <td class="align-middle text-center">
                                 <div class="gap-2">
                                     <button class="btn btn-sm btn-outline-primary storage-assign-btn no-loader fs-8" 
                                             data-bs-toggle="modal" 
@@ -77,7 +88,18 @@
                                         <i class="fa-solid fa-{{ 'ban' if user.is_active else 'check' }} me-1"></i>
                                         {{ 'Deactivate' if user.is_active else 'Activate' }}
                                     </button>
-                                    <button class="btn btn-sm fs-8 btn-outline-info reset-password" data-user-id="{{user.id}}" data-reset-password="{{user.username[:4] | lower}}_123@">
+                                    <button class="btn btn-sm fs-8 btn-outline-info no-loader reporting-btn" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#reportingModal"
+                                    data-user-id="{{ user.id }}"
+                                    data-username="{{ user.username }}"
+                                    data-reporting-username="{{ user.reporting_to}}"
+                                    data-reporting-email="{{ user.reporting_to_email}}"
+                                    data-reporting-id="{{ user.reporting_to_id}}">
+                                        <i class="fa-solid fa-user-group me-1"></i>
+                                        Alter Reporting
+                                    </button>
+                                    <button class="btn btn-sm fs-8 btn-outline-dark reset-password" data-user-id="{{user.id}}" data-reset-password="{{user.username[:4] | lower}}_123@">
                                         <i class="fa-solid fa-unlock-keyhole me-1"></i>
                                         Reset Password
                                     </button>
@@ -103,7 +125,9 @@
             <div class="modal-body">
                 <form id="storageAssignmentForm">
                     <input type="hidden" id="storageUserId" name="user_id">
-                    
+                    <div class="mb-1 text-danger text-center fs-7">
+                        <i class="fa-solid fa-circle-exclamation"></i>  Storage Remaining: {{storage_remaining}}
+                    </div>
                     <div class="mb-3">
                         <label for="storageUsername" class="form-label fs-7">Username</label>
                         <input type="text" class="form-control" id="storageUsername" readonly disabled>
@@ -113,7 +137,7 @@
                         <label class="form-label fs-7">Storage Volume</label>
                         <div class="input-group">
                             <input type="number" class="form-control" id="storageAllocated" name="storage_allocated" 
-                                   step="1" min="1" required>
+                                   step="0.1" min="1" required>
                             <select class="form-select" id="storageUnit" name="storage_unit" style="max-width: 120px;">
                                 <option value="MB" selected>MB</option>
                                 <option value="GB">GB</option>
@@ -123,6 +147,41 @@
 
                     <div class="mb-3 d-flex justify-content-center">
                         <button type="submit" class="btn btn-primary fs-7">Assign Storage</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="reportingModal" tabindex="-2">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fs-6">Alter Reporting</h5>
+                <button type="button" class="btn-close no-loader fs-7" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reportingForm">
+                    <input type="hidden" id="UserId" name="user_id">
+                    
+                    <div class="mb-3">
+                        <label for="reportingUser" class="form-label fs-7">Username</label>
+                        <input type="text" class="form-control" id="reportingUser" readonly disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="superUsers" class="form-label fs-7">Select Reporting Manager</label>
+                            <select class="form-select" id="superUsers" name="superUsers">
+                                <option value="" selected>Select Reporting Manager</option>
+                                {%for user in superusers%}
+                                <option value="{{user.id}}">{{user.username}} ({{user.email}})</option>
+                                {%endfor%}
+                            </select>
+                    </div>
+
+                    <div class="mb-3 d-flex justify-content-center">
+                        <button type="submit" class="btn btn-primary fs-7">Submit</button>
                     </div>
 
                 </form>
@@ -185,10 +244,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('storageUnit').setAttribute('data-storage-unit', window.storageUnit);
     });
 
+
     // Storage Assignment Form Submission
     const storageForm = document.getElementById('storageAssignmentForm');
     storageForm.addEventListener('submit', function(event) {
-        
+        storageModal.classList.remove('show');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+        document.body.classList.remove('modal-open');
         event.preventDefault();
         toggleSpinner();
         const userId = document.getElementById('storageUserId').value;
@@ -224,7 +289,60 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('An error occurred while updating storage');
         });
     });
+    const reportingModal = document.getElementById('reportingModal');
+    reportingModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const userId = button.getAttribute('data-user-id');
+        const username = button.getAttribute('data-username');
+        let currentReportingUsername = button.getAttribute('data-reporting-username');
+        let currentReportingEmail = button.getAttribute('data-reporting-email');
+        let currentReportingId = button.getAttribute('data-reporting-id');
+        window.currentReportingId = currentReportingId 
+        window.currentReportingEmail = currentReportingEmail 
+        window.currentReportingUsername = currentReportingUsername 
+        console.log(username);
 
+        document.getElementById('UserId').value = userId;
+        document.getElementById('reportingUser').value = username;
+        document.getElementById('superUsers').value = currentReportingId;
+        document.getElementById('superUsers').setAttribute('data-reporting-id', window.currentReportingId);
+    });
+
+    const reportingForm = document.getElementById('reportingForm');
+    reportingForm.addEventListener('submit', function(event) {
+        reportingModal.classList.remove('show');
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+        document.body.classList.remove('modal-open');
+        event.preventDefault();
+        toggleSpinner();
+        const userId = document.getElementById('UserId').value;
+        const reporting_to_id = document.getElementById('superUsers').value;
+
+        // Send JSON object for storage update
+        fetch('/auth/update_reporting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                user_id: userId, 
+                reporting_to_id: reporting_to_id 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+                    toggleSpinner();
+                    window.location.href = data.redirect_url;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            toggleSpinner();
+            showToast('An error occurred while updating reporting');
+        });
+    });
     // User Status Toggle
     const statusButtons = document.querySelectorAll('.toggle-user-status');
     statusButtons.forEach(button => {
@@ -246,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Update button and status badge
                     const row = this.closest('tr');
-                    const statusBadge = row.cells[3].querySelector('.badge');
+                    const statusBadge = row.cells[4].querySelector('.badge');
                     
                     if (currentStatus) {
                         statusBadge.textContent = 'Inactive';
@@ -280,7 +398,34 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+    const adminInputs = document.querySelectorAll('.toggle-admin-status');
+    adminInputs.forEach(input => {
+        
+        input.addEventListener('click', function() {
+            toggleSpinner();
+            const userId = this.getAttribute('data-user-id');
+            const currentStatus = this.getAttribute('data-current-status') === 'True';
 
+            // Send JSON object for status toggle
+            fetch('/auth/toggle_admin_status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                    
+                    window.location.href = data.redirect_url;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                toggleSpinner();
+                showToast('An error occurred while updating user status');
+            });
+        });
+    });
     const resetButtons = document.querySelectorAll('.reset-password');
     resetButtons.forEach(button => {
         button.addEventListener('click', function() {

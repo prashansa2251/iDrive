@@ -275,34 +275,35 @@
             const searchTerm = this.value.toLowerCase().trim();
             filterItems(searchTerm);
         });
-        async function fetchStorageStatus() {
-            try {
-                const response = await fetch('/storage_status', { method: 'POST' });
-                const data = await response.json();
+        function fetchStorageStatus() {
+    fetch('/storage_status', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            const storageContainer = document.getElementById('storageStatus');
+            if (!storageContainer) return;
 
-                const storageContainer = document.getElementById('storageStatus');
-                if (!storageContainer) return;
+            const { used, allocated, danger, percentage } = data;
 
-                const { used, allocated, danger, percentage } = data;
+            // Determine danger class for text and progress bar
+            const dangerClass = danger ? 'text-danger' : '';
+            const progressBarClass = danger ? 'bg-danger' : '';
 
-                // Determine danger class for text and progress bar
-                const dangerClass = danger ? 'text-danger' : '';
-                const progressBarClass = danger ? 'bg-danger' : '';
-
-                // Update the HTML inside #storageStatus
-                storageContainer.innerHTML = `
-            <div class="container p-0 m-0 ms-3 ${dangerClass}" style="width: 50%;">
-                <span class="fs-8"><i class="fa-solid fa-cloud"></i> Storage (${percentage}% Full)</span>
-                <div class="progress" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100" style="height: 5px;">
-                    <div class="progress-bar ${progressBarClass}" style="width: ${percentage}%;"></div>
+            // Update the HTML inside #storageStatus
+            storageContainer.innerHTML = `
+                <div class="container p-0 m-0 ms-3 ${dangerClass}" style="width: 50%;">
+                    <span class="fs-8"><i class="fa-solid fa-cloud"></i> Storage (${percentage}% Full)</span>
+                    <div class="progress" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100" style="height: 5px;">
+                        <div class="progress-bar ${progressBarClass}" style="width: ${percentage}%;"></div>
+                    </div>
+                    <span class="fs-9">${used} of ${allocated} used</span>
                 </div>
-                <span class="fs-9">${used} of ${allocated} used</span>
-            </div>
-        `;
-            } catch (error) {
-                console.error("Error fetching storage status:", error);
-            }
-        }
+            `;
+        })
+        .catch(error => {
+            console.error("Error fetching storage status:", error);
+        });
+}
+
 
         function filterItems(searchTerm) {
             if (!searchTerm) {

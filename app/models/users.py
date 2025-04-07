@@ -56,6 +56,37 @@ class User(UserMixin, db.Model):
             return False
 
     @classmethod
+    def get_superusers(cls,current_user_id):
+        check_superadmin = cls.check_superadmin(current_user_id)
+        if check_superadmin:
+                query = db.session.query(
+                    cls.id,
+                    cls.username,
+                    cls.isActive,
+                    cls.email,
+                    cls.superuser_id
+                ).filter(cls.isAdmin == True).order_by(cls.id).all()
+        else:
+                query = db.session.query(
+                    cls.id,
+                    cls.username,
+                    cls.isActive,
+                    cls.email,
+                    cls.superuser_id
+                ).filter(cls.isAdmin == True, cls.superuser_id != 0).order_by(cls.id).all()
+        
+        if query:
+            json_data = [{
+                'id': item.id,
+                'username': item.username,
+                'is_active': item.isActive,
+                'email':item.email,
+                'superuser_id':item.superuser_id
+            } for item in query]
+            
+        return json_data
+    
+    @classmethod
     def get_users_data(cls, user_id_array):
         json_data = []
         for id in user_id_array:
@@ -63,7 +94,9 @@ class User(UserMixin, db.Model):
                 cls.id,
                 cls.username,
                 cls.isActive,
+                cls.isAdmin,
                 cls.email,
+                cls.superuser_id,
                 UserConfig.folder_name,
                 UserConfig.storage_upgraded,
                 UserConfig.user_id,
@@ -73,17 +106,23 @@ class User(UserMixin, db.Model):
                 json_data.append({'id':query.id,
                         'username':query.username,
                         'is_active':query.isActive,
+                        'is_admin':query.isAdmin,
                         'email':query.email,
                         'folder_name':query.folder_name,
                         'storage_upgraded':query.storage_upgraded,
                         'user_id':query.user_id,
-                        'max_size':query.max_size
+                        'max_size':query.max_size,
+                        'superuser_id':query.superuser_id
                             })
         return json_data
     
     @classmethod
     def find_by_email(cls, email):
         return cls.query.filter_by(email=email).first()
+    
+    @classmethod
+    def find_by_username(cls, username):
+        return cls.query.filter_by(username=username).first()
     
     @classmethod
     def get_all(cls):
@@ -115,6 +154,17 @@ class User(UserMixin, db.Model):
         return cls.query.filter(cls.id==id).first()
     
     @classmethod
+    def get_superadmin_folders(cls):
+        query = db.session.query(
+            UserConfig.folder_name,
+        ).select_from(cls).join(UserConfig,cls.id == UserConfig.user_id).filter(cls.superuser_id==0).all()
+        
+        if query:
+            json_data = [item.folder_name for item in query]
+            
+        return json_data
+    
+    @classmethod
     def check_active(cls,user_id):
         query = cls.query.filter_by(id=user_id).first()
         if query:
@@ -138,6 +188,20 @@ class User(UserMixin, db.Model):
     def toggle_user_status(cls,user_id):
         user = cls.query.filter_by(id=user_id).first()
         user.isActive = not user.isActive
+        user.update_db()
+        return True
+    
+    @classmethod
+    def toggle_admin_status(cls,user_id):
+        user = cls.query.filter_by(id=user_id).first()
+        user.isAdmin = not user.isAdmin
+        user.update_db()
+        return True
+    
+    @classmethod
+    def update_reporting(cls,user_id,superuser_id):
+        user = cls.query.filter_by(id=user_id).first()
+        user.superuser_id = superuser_id
         user.update_db()
         return True
     

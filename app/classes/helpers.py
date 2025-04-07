@@ -40,7 +40,7 @@ class HelperClass():
         return folder_name
     
     @classmethod
-    def format_file_size(cls, bytes):
+    def format_file_size_bytes(cls, bytes):
         if bytes < 1024:
             return f"{bytes} bytes"
         elif bytes < 1048576:  # Less than 1 MB
@@ -95,115 +95,28 @@ class HelperClass():
 
         return message
         
+        
     @classmethod
-    def check_remaining_storage(cls,s3_client,user_id):
-        
-        if current_user.isAdmin:
-            folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME)
-        else:
-            allocated_storage = UserConfig.get_allocated_storage(user_id)
-            folder_name = cls.create_or_get_user_folder(s3_client,user_id)
-            folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-            
-        used_storage = 0  
-        if not folder_files['KeyCount']:
-            storage_info = {'used':'0 MB','allocated':allocated_storage,'danger':False,'percentage':0}
-            return storage_info
-        for file in folder_files['Contents']:
-            used_storage += file.get('Size', 0)
-                
-        used_storage = cls.format_file_size(used_storage)
-        
-        if current_user.isAdmin:
-            percentage,allocated_storage = cls.calculate_total_storage_and_percentage(used_storage)
-        else:
-            percentage,allocated_storage = cls.calculate_total_storage_and_percentage(used_storage,allocated_storage)
-        
-        allocated_storage = cls.format_allocated_storage(allocated_storage)
-            
-        danger = False
-        if percentage > 90:
-            danger = True
-            
-        storage_info = {'used':used_storage,'allocated':allocated_storage,'danger':danger,'percentage':percentage}
-        return storage_info
-    
-    @classmethod 
-    def calculate_total_storage_and_percentage(cls,storage_str, total_storage=None):
-        """Convert storage input (KB, MB, GB, TB) to TB and calculate percentage usage."""
-        
-        # Conversion factors to TB
-        conversion_factors = {
-            "KB": 1 / (1024 ** 3),  # Convert KB to TB
-            "MB": 1 / (1024 ** 2),  # Convert MB to TB
-            "GB": 1 / 1024,         # Convert GB to TB
-            "TB": 1                 # TB remains TB
-        }
-
-        # Extract numeric value and unit from input
-        parts = storage_str.split()
-        if len(parts) != 2:
-            raise ValueError("Invalid format. Example: '10 KB', '100 GB', '1.5 TB'")
-
-        try:
-            value = float(parts[0])  # Convert numeric part to float
-            unit = parts[1].upper()  # Normalize unit to uppercase
-        except ValueError:
-            raise ValueError("Invalid numeric value in storage input.")
-
-        if unit not in conversion_factors:
-            raise ValueError("Invalid storage unit. Allowed: KB, MB, GB, TB")
-
-        # Convert to TB
-        storage_in_tb = value * conversion_factors[unit]
-
-        # Apply rounding logic
-        if storage_in_tb < 1:
-            final_tb = 1  # Ensure minimum of 1 TB
-        elif storage_in_tb == int(storage_in_tb):  
-            final_tb = int(storage_in_tb) + 1  # If already a whole number, increase by 1 TB
-        else:
-            final_tb = math.ceil(storage_in_tb)  # Round up to the next TB
-        
-        # Calculate percentage used based on allocated TB
-        percentage_used = int((storage_in_tb / final_tb) * 100)
-
-        # If total_storage is provided, use it for percentage calculation
-        if total_storage:
-            percentage_used = int((storage_in_tb / total_storage) * 100)
-            return percentage_used, total_storage
-        
-        return percentage_used, final_tb  # Return percentage & allocated TB
-    
-    @classmethod
-    def file_can_be_uploaded(cls,s3_client,user_id,upload_file_size_in_bytes):
-        allocated_storage = UserConfig.get_allocated_storage(user_id)
+    def file_can_be_uploaded(cls,user_id,upload_file_size_in_bytes):
+        upload_file_mb = round(float(upload_file_size_in_bytes / (1024 * 1024)),2)  # Convert bytes to MB
+        users_data,total_storage = cls.get_users_data(user_id)
+        allocated_storage = total_storage['allocated'][2]
         if not allocated_storage:
             message = 'No storage allocated, Contact Admin !!'
             return False,message
-        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
-        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-        allocated_storage_in_bytes = int(allocated_storage*1099511627776)  
-        used_storage_in_bytes = 0 
-        if not used_storage_in_bytes:
-            return True,''
-        for file in folder_files['Contents']:
-                used_storage_in_bytes += file.get('Size', 0)
-        buffer_10_kb_in_bytes = 10240 # to insure 10 KB is left after upload
-        total_bytes_after_upload = used_storage_in_bytes + upload_file_size_in_bytes + buffer_10_kb_in_bytes
-        if total_bytes_after_upload > allocated_storage_in_bytes:   
+        remaining_storage = total_storage['remaining'][2]
+        remaining_storage_unit = total_storage['remaining'][1]
+        if remaining_storage_unit == 'GB':
+            remaining_storage = round(float(remaining_storage * 1024),2)
+        elif remaining_storage_unit == 'MB':
+            remaining_storage = float(remaining_storage)
+        elif remaining_storage_unit == 'TB':
+            remaining_storage = round(float(remaining_storage *1024*1024),2)   
+            
+        if remaining_storage < upload_file_mb+5: #buffer 5mb:
             message = 'Not enough storage, cannot upload !!'
             return False,message
         return True,''
-        
-    @classmethod 
-    def format_allocated_storage(cls,storage_tb):
-        """Convert and return used storage in GB if <1TB, otherwise in TB."""
-        if storage_tb < 1:
-            if storage_tb * 1024 < 1:
-                return f"{round(storage_tb * 1024 * 1024)} MB"
-            return f"{round(storage_tb * 1024)} GB"  # Convert TB to GB
-        return f"{storage_tb} TB"  # Keep TB as it is, rounded
     
     @classmethod
     def get_folder_array(cls,user_id):
@@ -228,10 +141,22 @@ class HelperClass():
         total_storage_allocated = UserConfig.get_allocated_storage(user_id)
         total_storage_occupied = 0
         for user in users_data:
+            reporting_to = User.get_by_id(user['superuser_id'])
+            user['reporting_to'] = reporting_to.username
+            user['reporting_to_email'] = reporting_to.email
+            user['reporting_to_id'] = reporting_to.id
             user['storage_used'] = cls.get_formatted_storage(cls.get_user_storage(user['user_id'])['used'])[0]
-            user['storage_allocated'],user['storage_unit'] = cls.get_formatted_storage(user['max_size'])
+            user['storage_allocated'],user['storage_unit'],storage = cls.get_formatted_storage(user['max_size'])
             total_storage_occupied += int(user['max_size'])
-        total_storage_occupied = total_storage_occupied
+            
+        user_storage_occupied = 0
+        s3_client = get_s3_client()
+        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
+        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+        for file in folder_files['Contents']:
+            user_storage_occupied += file.get('Size', 0)
+        user_storage_occupied = round(float(user_storage_occupied / (1024 * 1024)),2)
+        total_storage_occupied = total_storage_occupied + user_storage_occupied
         total_storage_remaining = int(total_storage_allocated) - int(total_storage_occupied)
         total_storage = {'remaining':cls.get_formatted_storage(total_storage_remaining),
                          'allocated':cls.get_formatted_storage(total_storage_allocated),
@@ -242,11 +167,13 @@ class HelperClass():
 
     @classmethod
     def get_formatted_storage(cls,storage):
-        storage_int = int(storage)
+        storage_int = round(float(storage),2)
         if storage_int < 1024:
-            return str(storage_int)+' MB','MB'
-        elif storage_int >= 1024:
-            return str(int(storage_int/1024))+' GB','GB'
+            return str(storage_int)+' MB','MB',storage_int
+        elif storage_int >= 1024 and storage_int < 1048576:
+            return str(round(float(storage_int/1024),2))+' GB','GB',round(float(storage_int/1024),2)
+        else:
+            return str(round(float(storage_int/1048576),2))+' TB','TB',round(float(storage_int/1048576),2)
         
     @classmethod
     def update_user_storage(cls,data):
@@ -257,12 +184,12 @@ class HelperClass():
         original_storage=data['original_storage']
         
         if original_unit == 'GB' and updated_unit == 'GB':
-            original_storage = int(original_storage) * 1024
-            updated_storage = int(updated_storage) * 1024
+            original_storage = round(float(original_storage) * 1024,2)
+            updated_storage = round(float(updated_storage) * 1024,2)
         elif original_unit == 'GB' and updated_unit == 'MB':
-            original_storage = int(original_storage) * 1024
+            original_storage = round(float(original_storage) * 1024,2)
         elif original_unit == 'MB' and updated_unit == 'GB':
-            updated_storage = int(updated_storage) * 1024
+            updated_storage = round(float(updated_storage) * 1024,2)
         elif original_unit == 'MB' and updated_unit == 'MB':
             pass
         
@@ -277,19 +204,19 @@ class HelperClass():
                 flash('Cannot reduce storage allocation below used space!')
                 return False
         
-        remaining_storage = storage_data['remaining'][0]
+        remaining_storage = storage_data['remaining'][2]
         remaining_storage_unit = storage_data['remaining'][1]
         if remaining_storage_unit == 'GB':
-            remaining_storage = int(remaining_storage[:-3]) * 1024
+            remaining_storage = float(remaining_storage) * 1024
             
         elif remaining_storage_unit == 'MB':
-            remaining_storage = int(remaining_storage[:-3])
+            remaining_storage = float(remaining_storage)
 
         if remaining_storage < diff:
             flash('Not enough storage available to allocate!')
             return False
         else:
-            user_update = UserConfig.update_storage(data['user_id'],updated_storage)
+            user_update = UserConfig.update_storage(data['user_id'],math.ceil(updated_storage))
             if user_update:
                 flash('Storage updated successfully!')
                 return True
@@ -300,12 +227,54 @@ class HelperClass():
     @classmethod
     def get_user_storage(cls,user_id):
         s3_client = get_s3_client()
-        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
-        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+        user_ids = User.get_subordinates(user_id,True)
         used_storage_in_bytes = 0 
-        for file in folder_files['Contents']:
-                used_storage_in_bytes += file.get('Size', 0)
-        used_storage_mb = int(used_storage_in_bytes / (1024 * 1024)) # Convert bytes to MB
+        for id in user_ids:
+            folder_name = cls.create_or_get_user_folder(s3_client,id)
+            folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+            for file in folder_files['Contents']:
+                    used_storage_in_bytes += file.get('Size', 0)
+        used_storage_mb = round(float(used_storage_in_bytes / (1024 * 1024)),2) # Convert bytes to MB
         allocated_storage = UserConfig.get_allocated_storage(user_id)
         storage ={'used':used_storage_mb,'allocated':allocated_storage,'remaining':allocated_storage - used_storage_mb}
         return storage
+    
+    @classmethod
+    def get_storage_status(cls,user_id):
+        user_ids = User.get_subordinates(user_id,False)
+        user_data = User.get_users_data(user_ids)
+        storage_occupied = 0
+        for user in user_data:
+            storage_occupied += float(user['max_size'])
+        user_storage_occupied = 0
+        s3_client = get_s3_client()
+        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
+        folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
+        for file in folder_files['Contents']:
+            user_storage_occupied += file.get('Size', 0)
+        user_storage_occupied = round(float(user_storage_occupied / (1024 * 1024)),2)
+        total_storage_occupied = float(storage_occupied) + float(user_storage_occupied)
+        total_storage_allocated = UserConfig.get_allocated_storage(user_id)
+        if current_user.superuser_id == 0:
+            total_storage_allocated = cls.get_superadmin_storage(user_id)
+        total_storage_remaining = float(total_storage_allocated) - float(total_storage_occupied)
+        percentage = round(float((total_storage_occupied/total_storage_allocated)*100),2)
+        if percentage > 90:
+            danger = True
+        else:
+            danger = False
+        storage = {'remaining':cls.get_formatted_storage(total_storage_remaining)[0],
+                   'allocated':cls.get_formatted_storage(total_storage_allocated)[0],
+                   'used':cls.get_formatted_storage(total_storage_occupied)[0],
+                   'percentage': percentage,'danger':danger}
+        return storage
+        
+    
+    @classmethod
+    def get_superadmin_storage(cls,occupied_storage):
+        if occupied_storage/(1024*1024) <= 1:
+            occupied_storage = 1048576
+        elif occupied_storage/(1024*1024) > 1:
+            occupied_storage = math.ceil(round(float(occupied_storage/(1024*1024),2)))
+            occupied_storage = occupied_storage * 1024 * 1024
+        return occupied_storage

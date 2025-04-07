@@ -11,6 +11,8 @@ import time
 from app.classes.helpers import HelperClass
 from app.models.user_config import UserConfig
 from dotenv import load_dotenv
+
+from app.models.users import User
 ongoing_uploads = {}  # Dictionary to track ongoing uploads
 
 # Configure your bucket name
@@ -100,13 +102,16 @@ def create_drive_blp(socketio):
                                     'sizebytes': sizebytes,
                                     'path': file_key,
                                     'is_directory': False,
-                                    'size': HelperClass.format_file_size(item.get('Size', 0)),
+                                    'size': HelperClass.format_file_size_bytes(item.get('Size', 0)),
                                     'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
                                 })
                         
                         # Sort items by upload_date, newest first
                         if items:
-                            items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
+                            items.sort(
+                                key=lambda x: (x['is_directory'], datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST') if x['upload_date'] else datetime.min),
+                                reverse=True
+                            )
                         return jsonify(items), 200
                 
                 else:
@@ -121,9 +126,14 @@ def create_drive_blp(socketio):
                             user_folders=[]
                             for prefix in response['CommonPrefixes']:
                                 folder_name = prefix['Prefix'].rstrip('/')
+                                
                                 config = UserConfig.find_by_folder_name(folder_name)
                                 if config:
-                                    allocated_storage = HelperClass.format_allocated_storage(float(config.max_size))
+                                    superadmin_folders = User.get_superadmin_folders()
+                                    if folder_name in superadmin_folders:
+                                        allocated_storage = HelperClass.get_storage_status(current_user.id)['allocated']
+                                    else:
+                                        allocated_storage = HelperClass.get_formatted_storage(float(config.max_size))[0]
                                     parts = folder_name.split('_', 1)
                                     if len(parts) == 2 and parts[0].isdigit():
                                         folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
@@ -140,7 +150,7 @@ def create_drive_blp(socketio):
                                             'name': parts[1],
                                             'path': folder_name + "/",  # Add trailing slash to ensure proper navigation
                                             'is_directory': True,
-                                            'size': HelperClass.format_file_size(total_size) if total_size else None,
+                                            'size': HelperClass.format_file_size_bytes(total_size) if total_size else None,
                                             'allocated_storage': allocated_storage,
                                             'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
                                         })
@@ -209,7 +219,7 @@ def create_drive_blp(socketio):
                                         'sizebytes': sizebytes,
                                         'path': file_key,
                                         'is_directory': False,
-                                        'size': HelperClass.format_file_size(item.get('Size', 0)),
+                                        'size': HelperClass.format_file_size_bytes(item.get('Size', 0)),
                                         'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
                                     })
                         
@@ -221,7 +231,7 @@ def create_drive_blp(socketio):
                             last_modified = None
                             total_size = 0
                             allocated_storage = UserConfig.find_by_folder_name(folder_name).max_size
-                            allocated_storage = HelperClass.format_allocated_storage(float(allocated_storage))
+                            allocated_storage = HelperClass.get_formatted_storage(float(allocated_storage))[0]
                             if 'Contents' in folder_files:
                                 
                                 for file in folder_files['Contents']:
@@ -236,14 +246,17 @@ def create_drive_blp(socketio):
                                 'name': display_name,
                                 'path': folder_path,  # Use folder path with trailing slash
                                 'is_directory': True,
-                                'size': HelperClass.format_file_size(total_size) if total_size else None,
+                                'size': HelperClass.format_file_size_bytes(total_size) if total_size else None,
                                 'allocated_storage': allocated_storage,
                                 'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
                             })
                         
                         # Sort items by upload_date, newest first
                         if user_folder_items:
-                            user_folder_items.sort(key=lambda x: datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST'), reverse=True)
+                            user_folder_items.sort(
+                                key=lambda x: (x['is_directory'], datetime.strptime(x['upload_date'], '%Y-%m-%d %H:%M IST') if x['upload_date'] else datetime.min),
+                                reverse=True
+                            )
                         
                         return jsonify(user_folder_items), 200
             
@@ -291,8 +304,9 @@ def create_drive_blp(socketio):
             foldername = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
             
             # Check if file can be uploaded (storage limits)
-            can_be_uploaded, message = HelperClass.file_can_be_uploaded(s3_client, current_user.id, total_size)
+            can_be_uploaded, message = HelperClass.file_can_be_uploaded(current_user.id, total_size)
             if not can_be_uploaded:
+                flash(message)
                 return jsonify({'message': 'No Storage'}), 200
             
             # Create unique filename
@@ -565,7 +579,7 @@ def create_drive_blp(socketio):
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
         s3_client = get_s3_client()
-        storage_status = HelperClass.check_remaining_storage(s3_client,current_user.id)
+        storage_status = HelperClass.get_storage_status(current_user.id)
         return jsonify(storage_status),200
     
     @blp.route('/version')

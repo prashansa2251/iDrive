@@ -109,7 +109,14 @@
 .card-clickable {
     cursor: pointer;
 }
-
+.dropdown-menu .dropdown-item {
+        border-radius: 8px;
+        transition: background-color 0.2s;
+        color:black;
+    }
+    .dropdown-menu .dropdown-item:hover {
+        background-color: #f1f3f4;
+    }
     </style>
     {%block css%}
     {%endblock%}
@@ -120,7 +127,7 @@
     <nav class="navbar fixed-top bg-primary justify-content-between py-2">
         <div class="row w-100">
             <div class="col">
-                <div class="ms-2">
+                <div class="ms-2 d-flex align-items-center justify-content-start">
                     <a class="navbar-brand text-white" href="{{url_for('drive.index')}}">
                         <span class="me-2"><i class="fa-solid fa-hard-drive"></i></span>iDrive</a>
                 </div>
@@ -129,46 +136,58 @@
             <div class="col-2 px-0 ">
                 <div class="btn-toolbar justify-content-end gap-2" role="toolbar" aria-label="Toolbar with button groups">
                     <div class="btn-group mr-2" role="group" aria-label="First group">
-                        <button class="btn text-white dropdown-toggle no-loader" type="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-user fa-lg"></i>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 205px;">
+                        
+                        <button class="btn btn-light text-primary no-loader rounded-5 fw-bold" type="button" id="userDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                             {% if current_user.is_authenticated %}
-                            {% if current_user.isAdmin %}
-                            <a class="list-group-item list-group-item-action p-3 fs-7"
-                                href="{{url_for('auth.manage_users')}}">
-                                <i class="fa-solid fa-user-gear"></i>&nbsp; Manage Users
-                            </a>
-                            <a href="{{url_for('auth.logout')}}"
-                                class="list-group-item list-group-item-action p-3 fs-7">
-                                <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
-                            </a>
-                            {% else %}
-                            <a class="list-group-item list-group-item-action p-3 fs-7"
-                                href="{{url_for('auth.upgrade_storage')}}">
-                                <i class="fa-solid fa-cloud-arrow-up"></i>&nbsp; Upgrade Storage
-                            </a>
-                            <a class="list-group-item list-group-item-action p-3 fs-7"
-                                href="{{url_for('auth.change_password')}}">
-                                <i class="fa-solid fa-user-pen"></i>&nbsp; Change Password
-                            </a>
-                            <a href="{{url_for('auth.logout')}}"
-                                class="list-group-item list-group-item-action p-3 fs-7">
-                                <i class="fa-solid fa-user-lock"></i>&nbsp; Logout
-                            </a>
+                            <span class="fs-6">{{ current_user.username[0]|upper }}</span> 
+                            {%else%}
+                            <i class="fa-solid fa-user fa-lg"></i>
                             {%endif%}
+                        </button>
+                        
+                        
+                        <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="userDropdown" style="min-width: 300px; border-radius: 12px;">
+                            {% if current_user.is_authenticated %}
+                                <!-- Profile Circle and Info -->
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" 
+                                         style="width: 48px; height: 48px; font-size: 20px;">
+                                        {{ current_user.username[0]|upper }}
+                                    </div>
+                                    <div class="ms-3">
+                                        <div class="fw-semibold text-dark">{{ current_user.username }}</div>
+                                        <div class="text-muted small">{{ current_user.email }}</div>
+                                    </div>
+                                </div>
+                        
+                                <hr class="my-2">
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.upgrade_storage') }}">
+                                    <i class="fa-solid fa-cloud-arrow-up me-2"></i> Upgrade Storage
+                                </a>
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.change_password') }}">
+                                    <i class="fa-solid fa-user-pen me-2"></i> Change Password
+                                </a>
+                                {% if current_user.isAdmin %}
+                                    <a class="dropdown-item fs-7" href="{{ url_for('auth.manage_users') }}">
+                                        <i class="fa-solid fa-user-gear me-2"></i> Manage Users
+                                    </a>                                    
+                                {% endif %}
+                        
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.logout') }}">
+                                    <i class="fa-solid fa-user-lock me-2"></i> Logout
+                                </a>
+                        
                             {% else %}
-                            <a href="{{url_for('auth.login')}}"
-                                class="list-group-item list-group-item-action p-3 fs-7">
-                                <i class="fa-solid fa-user-check"></i>&nbsp; Login
-                            </a>
-                            <a href="{{url_for('auth.register')}}"
-                                class="list-group-item list-group-item-action p-3 fs-7">
-                                <i class="fa-solid fa-user-plus"></i>&nbsp; Register
-                            </a>
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.login') }}">
+                                    <i class="fa-solid fa-user-check me-2"></i> Login
+                                </a>
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.register') }}">
+                                    <i class="fa-solid fa-user-plus me-2"></i> Register
+                                </a>
                             {% endif %}
-
                         </ul>
+                        
                     </div>
                     <div class="btn-group mr-2 d-none" role="group" aria-label="Second group">
                         <button class="btn text-white border border-light no-loader" type="button" data-bs-toggle="offcanvas"
