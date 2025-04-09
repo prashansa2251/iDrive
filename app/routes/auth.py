@@ -1,3 +1,4 @@
+import math
 from flask import Blueprint, flash, get_flashed_messages, json, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from app.models.user_config import UserConfig
@@ -92,14 +93,43 @@ def change_password():
     message = HelperClass.get_message()
     return render_template("auth/change_password.html", flash_message = message)
 
-@blp.route('/upgrade_storage')
+@blp.route('/storage_details')
 @login_required
-def upgrade_storage():
-    s3_client = get_s3_client()
+def storage_details():
     storage_info = HelperClass.get_storage_status(current_user.id)
-    storage_info['upgrade_amount'] = str(float(float(storage_info['allocated'][:-3])*1.05)) + storage_info['allocated'][-3:]
-    storage_upgraded = False
-    return render_template('auth/upgrade_storage.html',storage_info = storage_info,storage_upgraded=storage_upgraded)
+    users_storage = HelperClass.prepare_multi_progress_bar(storage_info)
+    return render_template('auth/storage_details.html',storage_info = storage_info,users_storage=users_storage)
+
+@blp.route('/create_request', methods=['POST'])
+@login_required
+def create_request():
+    if current_user.is_authenticated:
+        request_size = request.form.get('request_size')
+        storage_unit = request.form.get('storage_unit')
+        
+        requests= HelperClass.create_request(current_user.id,request_size,storage_unit)
+        if requests:
+            flash('Storage upgrade request created successfully!')
+            return redirect(url_for('drive.index'))
+    flash('You must be logged in to view this page!')
+    return redirect(url_for('auth.login'))
+
+@blp.route('/requests',methods=['POST','GET'])
+@login_required
+def requests():
+    if request.method=='POST':
+        if current_user.isAdmin:
+            pass
+            flash("The request(s) is/are approved!!")
+            return jsonify({'redirect_url': url_for('drive.index')})
+        else:
+            flash("Only admin can approve requests!")
+            
+    requests,marker = HelperClass.get_requests(current_user.id)
+    return render_template('auth/requests.html',
+                            requests = requests,
+                            marker = marker,
+                            flash_message = HelperClass.get_message())
 
 @blp.route('/reset_password', methods=['POST'])
 @login_required
@@ -185,6 +215,9 @@ def update_reporting():
         if current_user.isAdmin:
             if request.method=='POST':
                 json_data = request.json
+                if json_data['reporting_to_id'] == json_data['user_id']:
+                    flash('You cannot assign user to self!')
+                    return jsonify({'redirect_url':url_for('auth.manage_users')})
                 user_update = User.update_reporting(json_data['user_id'],json_data['reporting_to_id'])
                 if user_update:
                     flash('Reporting user updated successfully!')

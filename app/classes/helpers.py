@@ -4,6 +4,7 @@ import os
 import boto3
 from flask import flash, get_flashed_messages
 from flask_login import current_user
+from app.models.requests import Requests
 from app.models.user_config import UserConfig
 from datetime import datetime, timezone,timedelta
 from app.models.users import User
@@ -244,8 +245,15 @@ class HelperClass():
         user_ids = User.get_subordinates(user_id,False)
         user_data = User.get_users_data(user_ids)
         storage_occupied = 0
+        users_storage = []
         for user in user_data:
             storage_occupied += float(user['max_size'])
+            user_storage = {}
+            user_storage['user_id'] = user['user_id']
+            user_storage['username'] = user['username']
+            user_storage['used'] = cls.get_formatted_storage(user['max_size'])[0]
+            users_storage.append(user_storage)
+            
         user_storage_occupied = 0
         s3_client = get_s3_client()
         folder_name = cls.create_or_get_user_folder(s3_client,user_id)
@@ -263,13 +271,33 @@ class HelperClass():
             danger = True
         else:
             danger = False
+        users_storage.append({'user_id':user_id,'username':'Self','used':cls.get_formatted_storage(user_storage_occupied)[0]})
         storage = {'remaining':cls.get_formatted_storage(total_storage_remaining)[0],
                    'allocated':cls.get_formatted_storage(total_storage_allocated)[0],
                    'used':cls.get_formatted_storage(total_storage_occupied)[0],
-                   'percentage': percentage,'danger':danger}
+                   'percentage': percentage,'danger':danger,'users_storage':users_storage}
         return storage
         
-    
+    @classmethod
+    def prepare_multi_progress_bar(cls,data):
+        colors = ['#45A29E', '#F6C90E', '#C06C84', '#6C5B7B','#F67280', '#355C7D', '#99B898', '#E8A87C', '#41B3A3']
+        users_storage = data['users_storage']
+        total_storage = cls.get_storage_in_mb(data['allocated'][:-3],data['allocated'][-2:])
+        
+        for user in users_storage:
+            used_mb = cls.get_storage_in_mb(user['used'][:-3],user['used'][-2:])
+            user['percentage'] = round((float(used_mb) / float(total_storage)) * 100,2)
+            user['color'] = colors[users_storage.index(user) % len(colors)]
+            
+        remaining_mb = cls.get_storage_in_mb(data['remaining'][:-3],data['remaining'][-2:])
+        percentage = round((float(remaining_mb) / float(total_storage)) * 100,2)
+        
+        
+        users_storage = sorted(users_storage, key=lambda x: x['percentage'], reverse=True)
+        users_storage.append({'user_id':0,'username':'Remaining','used':data['remaining'],'percentage':percentage,'color':'#dfe6e9'})
+        return users_storage
+
+        
     @classmethod
     def get_superadmin_storage(cls,occupied_storage):
         if occupied_storage/(1024*1024) <= 1:
@@ -278,3 +306,43 @@ class HelperClass():
             occupied_storage = math.ceil(round(float(occupied_storage/(1024*1024),2)))
             occupied_storage = occupied_storage * 1024 * 1024
         return occupied_storage
+    
+    @classmethod 
+    def get_storage_in_mb(cls,storage,unit):
+        storage = float(storage)
+        if unit == 'MB':
+            return math.ceil(storage)
+        elif unit == 'GB':
+            return math.ceil(storage * 1024)
+        elif unit == 'TB':
+            return math.ceil(storage * 1024 * 1024)
+        
+        
+    @classmethod
+    def create_request(cls,user_id,req_size,req_unit):
+        user = User.get_by_id(user_id)
+        superuser_id = user.superuser_id
+        if req_unit == 'GB':
+            req_size = math.ceil(float(req_size) * 1024)
+        request = Requests(status=False,
+                           user_id=user_id,
+                           req_size=req_size,
+                           marked_read=False,
+                           superuser_id=superuser_id)
+        request.save_to_db()
+        return True
+    
+    @classmethod
+    def get_requests(cls,user_id):
+        superadmin = User.check_superadmin(user_id)
+        if superadmin:
+            user_id = 0
+        requests = Requests.get_requests_superuser(user_id)
+        unread_requests=0
+        if requests:
+            for request in requests:
+                if not request['marked_read']:
+                    unread_requests += 1
+                request['display_size'] = cls.get_formatted_storage(request['req_size'])[0]
+
+        return requests,unread_requests

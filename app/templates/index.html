@@ -32,6 +32,16 @@
         transition: all 0.2s ease;
     }
 
+    .tr-selectable {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .card-clickable {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
     .card-selectable:hover {
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
@@ -76,7 +86,11 @@
 
     <div class="row mt-2">
 
-        <div class="col-md-3 ps-0 justify-content-start d-flex" id="storageStatus"></div>
+
+        <div class="col-md-3 ps-0 justify-content-start d-flex">
+            <a href="{{url_for('auth.storage_details')}}" class="text-decoration-none w-100" id="storageStatus"></a>
+        </div>
+
         <div class="col-md-6">
             <div class="input-group pt-3">
                 <input type="text" id="searchInput" class="form-control rounded-start-5" placeholder="Search Files"
@@ -87,9 +101,19 @@
             </div>
         </div>
         <div class="col-md-3 d-flex justify-content-end">
-            <a type="button" class="btn btn-primary mt-3 me-2" href="/upload">
+            <button type="button" class="btn btn-primary mt-3 me-2 no-loader" id="newDropdown" data-bs-toggle="dropdown"
+                aria-expanded="false">
                 <i class="fa-solid fa-plus"></i> <span class="ms-2">New</span>
-            </a>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="newDropdown"
+                style="min-width: 300px; border-radius: 12px;">
+                <a class="dropdown-item fs-7" href="{{ url_for('drive.upload_get') }}">
+                    <i class="fa-solid fa-file-arrow-up me-2"></i> Upload Files
+                </a>
+                <button class="dropdown-item fs-7 no-loader" id="newFolderBtn">
+                    <i class="fa-solid fa-folder-plus me-2"></i> Create Folder
+                </button>
+            </ul>
         </div>
     </div>
     <section>
@@ -157,8 +181,8 @@
                     <th class="text-center">Type</th>
                     <th>Name</th>
                     <th>Size</th>
-                    <th>Last Modified</th>
-                    <th>Actions</th>
+                    <th class="">Last Modified</th>
+                    <th class=""></th>
                 </tr>
             </thead>
             <tbody>
@@ -178,6 +202,76 @@
             <i class="fa-solid fa-plus"></i> <span class="ms-2">Upload New File</span>
         </a>
     </div>
+</section>
+<section id="noFilesFolder" class="d-none">
+    <div class="col ps-0">
+        <ol id="breadcrumbFolder" class="breadcrumb fs-7" style="border: none; box-shadow: none;"></ol>
+    </div>
+    <div class="text-center py-5">
+        <div class="display-1 text-muted mb-3">
+            <i class="fa-solid fa-cloud-arrow-up text-muted fs-1"></i>
+        </div>
+        <h2 class="text-muted">No files in this folder</h2>
+        <p class="lead">Upload your first file to get started</p>
+        <a type="button" class="btn btn-primary" href="/upload">
+            <i class="fa-solid fa-plus"></i> <span class="ms-2">Upload New File</span>
+        </a>
+    </div>
+</section>
+<section id="newFolder" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6">Create New Folder</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="folderForm" action="{{url_for('drive.create_folder')}}" method="POST">
+                            <input type="hidden" name="current_path" id="currentPath">
+                            <div class="mb-3">
+                                <label for="folderName" class="form-label fs-7">Folder Name</label>
+                                <input type="text" class="form-control" id="folderName" name="folder_name">
+                            </div>
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader" href="/">Back</a>
+                                <button type="submit" class="btn btn-primary fs-7">Create Folder</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+<section id="renameSection" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6">Rename</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="renameForm" action="{{url_for('drive.rename')}}" method="POST">
+                            <input type="hidden" name="rename_path" id="renamePath">
+                            <input type="hidden" name="is_directory" id="isDirectory">
+                            <input type="hidden" name="original_name" id="originalName">
+                            <input type="hidden" name="old_name" id="oldName">
+                            <input type="hidden" name="file_extension" id="fileExtension">
+
+                            <div class="mb-3">
+                                <label for="renameName" class="form-label fs-7">Name</label>
+                                <input type="text" class="form-control" id="renameName" name="rename_name">
+                            </div>
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader" href="/">Back</a>
+                                <button type="submit" class="btn btn-primary fs-7">Rename</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
 </section>
 <!-- Download Progress UI -->
 <div id="download-progress-container" class="position-fixed rounded shadow"
@@ -210,6 +304,7 @@
     </div>
 </div>
 <input type="hidden" name="folder_path" id="folderPath" value="{{folder_path}}">
+<div class="contianer w-100" style="height: 50px;"></div>
 {%endblock%}
 
 {%block scripts%}
@@ -221,15 +316,27 @@
         const tableView = document.getElementById('tableView');
         const noFiles = document.getElementById('noFiles');
         const withFiles = document.getElementById('withFiles');
-        const breadcrumb = document.getElementById('breadcrumb');
         const searchInput = document.getElementById('searchInput');
-        const folderPath = document.getElementById('folderPath').value;
-        const selectAllCheckBox = document.getElementById('selectAllCheckBox')
+        const rootFolderPath = document.getElementById('folderPath').value;
+        const selectAllCheckBox = document.getElementById('selectAllCheckBox');
+        const newFolderBtn = document.getElementById('newFolderBtn');
+        const newFolder = document.getElementById('newFolder');
+        const currentPathFolder = document.getElementById('currentPath');
+        const noFilesFolder = document.getElementById('noFilesFolder');
         let currentPath = ''; // Tracks the current directory path
         let allItems = []; // Store all items from current directory for filtering
         let lastCheckedIndex = -1;
         let selectedItems = [];
         let isShiftPressed = false;
+
+        newFolderBtn.addEventListener('click', function () {
+            toggleSpinner();
+            noFiles.classList.add('d-none');
+            withFiles.classList.add('d-none');
+            newFolder.classList.remove('d-none');
+            currentPathFolder.value = currentPath;
+            toggleSpinner();
+        });
 
         // Toggle Views
         cardViewBtn.addEventListener('click', function () {
@@ -269,6 +376,41 @@
                 isCtrlPressed = false;
             }
         });
+        window.showRenameForm = function (item) {
+            const renameSection = document.getElementById('renameSection');
+            const renameNameInput = document.getElementById('renameName');
+            const renamePathInput = document.getElementById('renamePath');
+            const isDirectoryInput = document.getElementById('isDirectory');
+            const originalNameInput = document.getElementById('originalName');
+            const oldNameInput = document.getElementById('oldName');
+            const extensionInput = document.getElementById('fileExtension');
+
+            // Assign basic values
+            renamePathInput.value = item.path;
+            isDirectoryInput.value = item.is_directory;
+            originalNameInput.value = item.original_filename;
+            oldNameInput.value = item.name;
+
+            if (!item.is_directory) {
+                const nameParts = item.name.split('.');
+                if (nameParts.length > 1) {
+                    const ext = nameParts.pop(); // Remove and get extension
+                    extensionInput.value = '.' + ext;
+                    renameNameInput.value = nameParts.join('.');
+                } else {
+                    extensionInput.value = '';
+                    renameNameInput.value = item.name;
+                }
+            } else {
+                extensionInput.value = ''; // folders don’t have extensions
+                renameNameInput.value = item.name;
+            }
+
+            // Show section
+            withFiles.classList.add('d-none');
+            renameSection.classList.remove('d-none');
+            renameSection.scrollIntoView({ behavior: 'smooth' });
+        }
 
         // Search functionality
         searchInput.addEventListener('input', function () {
@@ -276,20 +418,20 @@
             filterItems(searchTerm);
         });
         function fetchStorageStatus() {
-    fetch('/storage_status', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            const storageContainer = document.getElementById('storageStatus');
-            if (!storageContainer) return;
+            fetch('/storage_status', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    const storageContainer = document.getElementById('storageStatus');
+                    if (!storageContainer) return;
 
-            const { used, allocated, danger, percentage } = data;
+                    const { used, allocated, danger, percentage } = data;
 
-            // Determine danger class for text and progress bar
-            const dangerClass = danger ? 'text-danger' : '';
-            const progressBarClass = danger ? 'bg-danger' : '';
+                    // Determine danger class for text and progress bar
+                    const dangerClass = danger ? 'text-danger' : 'text-muted';
+                    const progressBarClass = danger ? 'bg-danger' : 'bg-info';
 
-            // Update the HTML inside #storageStatus
-            storageContainer.innerHTML = `
+                    // Update the HTML inside #storageStatus
+                    storageContainer.innerHTML = `
                 <div class="container p-0 m-0 ms-3 ${dangerClass}" style="width: 50%;">
                     <span class="fs-8"><i class="fa-solid fa-cloud"></i> Storage (${percentage}% Full)</span>
                     <div class="progress" role="progressbar" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100" style="height: 5px;">
@@ -298,11 +440,11 @@
                     <span class="fs-9">${used} of ${allocated} used</span>
                 </div>
             `;
-        })
-        .catch(error => {
-            console.error("Error fetching storage status:", error);
-        });
-}
+                })
+                .catch(error => {
+                    console.error("Error fetching storage status:", error);
+                });
+        }
 
 
         function filterItems(searchTerm) {
@@ -364,11 +506,21 @@
                     allItems = data;
 
                     if (data.length === 0) {
-                        noFiles.classList.remove('d-none');
-                        withFiles.classList.add('d-none');
+                        if (currentPath === rootFolderPath) {
+                            noFiles.classList.remove('d-none');
+                            withFiles.classList.add('d-none');
+                            noFilesFolder.classList.add('d-none');
+                        } else {
+                            noFiles.classList.add('d-none');
+                            withFiles.classList.add('d-none');
+                            noFilesFolder.classList.remove('d-none');
+                            console.log("Empty folder:", currentPath);
+                        }
+
                     } else {
                         noFiles.classList.add('d-none');
                         withFiles.classList.remove('d-none');
+                        noFilesFolder.classList.add('d-none');
                         updateCardView(data);
                         updateTableView(data);
                         deselectAllRows();
@@ -384,23 +536,60 @@
 
         // Update Breadcrumb & Back Button 
         function updateBreadcrumb() {
-            breadcrumb.innerHTML = '';
-            const parts = currentPath.split('/').filter(p => p);
+            const breadcrumbElements = [
+                document.getElementById('breadcrumb'),
+                document.getElementById('breadcrumbFolder')
+            ];
 
-            let pathSoFar = '';
-            breadcrumb.innerHTML = `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('')">Home</a></li>`;
+            breadcrumbElements.forEach(breadcrumb => {
+                if (!breadcrumb) return;
 
-            parts.forEach((part, index) => {
+                breadcrumb.innerHTML = '';
+                const parts = currentPath.split('/').filter(p => p);
+                console.log("Current path:", currentPath);
 
-                let foldername = part.split('_').slice(1).join('_');
-                pathSoFar += (index > 0 ? '/' : '') + foldername;
-                if (index === parts.length - 1) {
-                    breadcrumb.innerHTML += `<li class="breadcrumb-item active">${formatFolderName(foldername)}</li>`;
-                } else {
-                    breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${pathSoFar}')">${part}</a></li>`;
-                }
+                // Always start with Home, linking to the user's base folder
+                breadcrumb.innerHTML = `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${rootFolderPath}')">Home</a></li>`;
+
+                if (parts.length === 0) return;
+
+                let fullPath = '';
+
+                parts.forEach((part, index) => {
+                    fullPath += (index === 0 ? '' : '/') + part;
+
+                    if (index === 0) {
+                        const nameParts = part.split('_');
+                        if (nameParts.length > 1) {
+                            const displayName = nameParts.slice(1).join(' ').replace(/_/g, ' ');
+                            const formattedName = formatFolderName(displayName);
+
+                            if (parts.length > 1) {
+                                const fullPathWithSlash = fullPath + '/';
+                                breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${fullPathWithSlash}')">${formattedName}</a></li>`;
+                            } else {
+                                breadcrumb.innerHTML += `<li class="breadcrumb-item active">${formattedName}</li>`;
+                            }
+                        } else {
+                            breadcrumb.innerHTML += `<li class="breadcrumb-item${parts.length === 1 ? ' active' : ''}">
+                        ${parts.length > 1 ? `<a href="#" onclick="fetchFileList('${fullPath}/')">${part}</a>` : part}
+                    </li>`;
+                        }
+                    } else {
+                        const fullPathWithSlash = fullPath + '/';
+                        const isLastItem = index === parts.length - 1;
+                        const displayName = formatFolderName(part);
+
+                        if (isLastItem) {
+                            breadcrumb.innerHTML += `<li class="breadcrumb-item active">${displayName}</li>`;
+                        } else {
+                            breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${fullPathWithSlash}')">${displayName}</a></li>`;
+                        }
+                    }
+                });
             });
         }
+
 
         function updateCardView(items) {
             const cardViewContainer = document.getElementById("cardView");
@@ -410,11 +599,11 @@
                 // Create card element
                 const col = document.createElement('div');
                 const card = document.createElement('div');
-
                 // Set card attributes and classes
                 col.className = 'col';
                 card.className = 'card h-100';
                 card.dataset.path = item.path;
+                card.dataset.originalfilename = item.original_filename;
                 card.dataset.name = item.name;
                 card.dataset.isDirectory = item.is_directory;
                 card.dataset.sizebytes = item.sizebytes;
@@ -426,34 +615,80 @@
                 } else {
                     card.className += ' card-clickable';
                     card.onclick = function (event) {
+                        const target = event.target;
+
+                        // Prevent folder navigation if the click was on the dropdown button or menu
+                        if (
+                            target.closest('.folderDropdown') ||
+                            target.closest('.dropdown-menu')
+                        ) {
+                            return;
+                        }
+
                         if (item.is_directory) {
                             fetchFileList(item.path);
                         }
                     };
+
                 }
 
                 // Card HTML content
                 card.innerHTML = `
-            <div class="card-body p-3 ${item.is_directory ? 'mt-3' : ''}">
+            <div class="card-body p-2">
+                ${item.is_directory ? `
+                <div class='d-flex justify-content-end'>
+                        <button class="btn btn-sm btn-outline-light fs-8 no-loader folderDropdown" id="folderDropdownCard_${item.name}" 
+                        data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="folderDropdownCard_${item.name}" style="border-radius: 12px;">
+                            ${!item.user_folder ? `
+                            ${item.owner ? `
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                                    <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
+                            </a>
+                            `:``}
+                            `:``}
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
+                                    <i class="fa-solid fa-download me-2" ></i> Download
+                            </a>
+                            ${item.owner ? `
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
+                                    <i class="fa-solid fa-trash-can me-2"></i> Delete
+                            </a>
+                            `:``}
+                        </ul>
+                </div>
+                ` : `<div class='d-flex justify-content-end'>
+                        <button class="btn btn-sm btn-outline-light fs-8 no-loader folderDropdown" id="fileDropdownCard_${item.name}" 
+                        data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="fileDropdownCard_${item.name}" style="border-radius: 12px;">
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                                    <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
+                            </a>
+                            <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
+                                    <i class="fa-solid fa-download me-2 "></i> Download
+                            </a>
+                            <a class="dropdown-item fs-7" href="#">
+                                    <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
+                            </a>
+                        </ul>
+                </div>
+                `}
+                <div class='p-3'>
                 <div class="text-center mb-2">
-                    ${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-3"></i>' : getFileIcon(item.original_filename)}
+                    ${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-chalkboard-user text-muted fs-3"></i>`:`<i class="fa-solid fa-folder text-muted fs-3"></i>`}` : getFileIcon(item.original_filename)}
                 </div>
                 <div class="text-center">
-                    <h6 class="card-title text-truncate mb-1">${item.is_directory ? formatFolderName(item.name) : item.name}</h6>
+                    <h6 class="card-title text-truncate mb-1">${item.name}</h6>
                 </div>
                 <div class="text-center text-muted fs-8">
-                    ${item.is_directory ? item.size + '/' + item.allocated_storage : item.size}
+                    ${item.allocated_storage ? (item.is_directory ? item.size + '/' + item.allocated_storage : item.size) : item.size}
                 </div>
                 <div class="text-center text-muted fs-8">
                     ${item.upload_date || ''}
                 </div>
-                ${item.is_directory ? `` : `
-                    <div class="d-flex justify-content-center gap-2 mt-2">
-                        <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="event.stopPropagation(); handleDownload(event,this);"><i class="fa-solid fa-download"></i></a>
-                        <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                `}
-            </div></div>
+            </div></div></div>
         `;
 
                 // Create and append the hidden checkbox
@@ -485,24 +720,59 @@
                 row.className = item.is_directory ? 'tr-clickable' : 'tr-selectable';
                 row.dataset.path = item.path;
                 row.dataset.name = item.name;
+                row.dataset.originalfilename = item.original_filename;
                 row.dataset.isDirectory = item.is_directory;
                 row.dataset.sizebytes = item.sizebytes;
                 row.onclick = function (event) { handleItemSelection(event, this); };
 
                 // Set row HTML content
                 row.innerHTML = `
-            <td class="p-1 align-middle text-center">${item.is_directory ? '<i class="fa-solid fa-folder text-muted fs-4"></i>' : getFileIcon(item.original_filename)}</td>
-            <td class='fs-7 align-middle'>${item.is_directory ? formatFolderName(item.name) : item.name}</td>
+            <td class="p-1 align-middle text-center">${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-chalkboard-user text-muted fs-4"></i>`:`<i class="fa-solid fa-folder text-muted fs-4"></i>`}` : getFileIcon(item.original_filename)}</td>
+            <td class='fs-7 align-middle'>${item.name}</td>
             <td class='text-muted fs-8 align-middle'>${item.size}</td>
             <td class='text-muted fs-8 align-middle'>${item.upload_date || ''}</td>
             <td>
                 ${item.is_directory ? `
-                    
-                ` : `
-                    <div class="d-flex gap-2">
-                        <a href="/stream_download/${item.path}" class="btn btn-sm btn-outline-primary fs-8" onclick="handleDownload(event,this);"><i class="fa-solid fa-download"></i></a>
-                        <button onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')" class="btn btn-sm btn-outline-danger fs-8"><i class="fa-solid fa-trash-can"></i></button>
+                    <div class='d-flex'>
+                        <button class="btn btn-sm btn-outline-light fs-8 no-loader folderDropdown" id="folderDropdownTable_${item.name}" 
+                        data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i></button>
+                        <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="folderDropdownTable_${item.name}" style="border-radius: 12px;">
+                            ${!item.user_folder ? `
+                            ${item.owner ? `
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                                    <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
+                            </a>
+                            `:``}
+                            `:``}
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
+                                    <i class="fa-solid fa-download me-2" ></i> Download
+                            </a>
+                            ${item.owner ? `
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
+                                    <i class="fa-solid fa-trash-can me-2"></i> Delete
+                            </a>
+                            `:``}
+                            
+                            
+                        </ul>
                     </div>
+                ` : `
+                    <div class='d-flex'>
+                        <button class="btn btn-sm btn-outline-light fs-8 no-loader folderDropdown" id="fileDropdownTable_${item.name}" 
+                        data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="fileDropdownTable_${item.name}" style="border-radius: 12px;">
+                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                                    <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
+                            </a>
+                            <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
+                                    <i class="fa-solid fa-download me-2 "></i> Download
+                            </a>
+                            <a class="dropdown-item fs-7" href="#">
+                                    <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
+                            </a>
+                        </ul>
+                </div>
                 `}
             </td>`;
 
@@ -554,6 +824,28 @@
                     });
             }
         };
+        window.deleteFolder = function (folderPath, folderName) {
+    if (confirm(`Are you sure you want to delete the folder "${folderName}"?`)) {
+        fetch(`/delete_folder/${encodeURIComponent(folderPath)}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                const message = data.message;
+                fetchFileList(currentPath); // Refresh the list
+                showToast(message);         // Show success toast
+            } else {
+                alert('Folder deletion failed.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the folder.');
+        });
+    }
+};
+
 
         // Function to determine file icons based on filename extension
         window.getFileIcon = function (filename) {
@@ -607,15 +899,24 @@
             return '<i class="fa-solid fa-file text-muted fs-4"></i>';
         };
 
-        function formatFolderName(input) {
-            return input.split('_') // Split by underscore
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize each word
-                .join(' '); // Join with space
+        function formatFolderName(name) {
+            return name
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
         }
         // Unified function to handle selection in both table and card views
         window.handleItemSelection = function (event, element) {
             // Check if it's a directory - if so, navigate to it
+            const target = event.target;
+            if (
+                target.closest('.folderDropdown') ||
+                target.closest('.dropdown-menu')
+            ) {
+                return; // Do nothing if dropdown was clicked
+            }
             if (element.dataset.isDirectory === 'true') {
+
                 fetchFileList(element.dataset.path);
                 return;
             }
@@ -1028,7 +1329,7 @@
 
         // Main bulk download function
         window.bulkDownload = async function () {
-            
+
             if (selectedItems.length === 0) {
                 console.log('Please select at least one file to download');
                 return;
@@ -1203,7 +1504,7 @@
 
                 // Auto-hide timer
                 setTimeout(hideProgressContainer, 30000);
-                
+
                 // Clear selection
                 deselectAllRows();
 
@@ -1216,6 +1517,156 @@
                 }
             }
         };
+        window.downloadFolder = async function (folderPath, folderName) {
+    window.downloadCancelled = false;
+    window.downloadCompleted = false;
+    resetProgressUI();
+    toggleSpinner();
+    console.log('Starting folder download:', folderPath);
+    
+    try {
+        updateMainStatus("Fetching folder contents...");
+
+        // 1. Get all files under the folder (server must return full paths)
+        const response = await fetch(`/list_folder_files?folder_path=${encodeURIComponent(folderPath)}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch folder contents');
+        }
+
+        const files = await response.json(); // [{ path: "...", size: ..., name: "..." }]
+        if (files.length === 0) {
+            throw new Error('Folder is empty.');
+        }
+
+        const zip = new JSZip();
+        let totalBytes = 0;
+        files.forEach(f => totalBytes += f.size);
+        let downloadedBytes = 0;
+        let processedCount = 0;
+        let errorCount = 0;
+        const startTime = Date.now(); // Track start time for speed calculation
+
+        document.getElementById('download-title').textContent = `Downloading folder: ${folderName}`;
+        updateMainStatus(`Starting download: ${formatBytes(totalBytes)}`);
+
+        // Process files in parallel with a limit (like in bulkDownload)
+        const downloadLimit = 2;
+        const downloadChunks = [];
+
+        for (let i = 0; i < files.length; i += downloadLimit) {
+            downloadChunks.push(files.slice(i, i + downloadLimit));
+        }
+
+        // Process each chunk
+        for (const chunk of downloadChunks) {
+            if (window.downloadCancelled) {
+                throw new Error('Download cancelled by user');
+            }
+            
+            const chunkPromises = chunk.map(async (file) => {
+                try {
+                    if (window.downloadCancelled) throw new Error('Download cancelled');
+
+                    updateMainStatus(`Downloading ${file.name}...`);
+                    
+                    const urlResp = await fetch(`/get-presigned-url?file_path=${encodeURIComponent(file.path)}`);
+                    if (!urlResp.ok) throw new Error(`URL fetch failed for ${file.path}`);
+                    const { url } = await urlResp.json();
+
+                    const fileResp = await fetch(url);
+                    if (!fileResp.ok) throw new Error(`Failed to download ${file.name}`);
+
+                    // Process the stream like in bulkDownload to track progress
+                    const reader = fileResp.body.getReader();
+                    const chunks = [];
+                    let receivedLength = 0;
+
+                    while (true) {
+                        if (window.downloadCancelled) {
+                            throw new Error('Download cancelled by user');
+                        }
+                        const { done, value } = await reader.read();
+
+                        if (done) {
+                            break;
+                        }
+
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        downloadedBytes += value.length;
+
+                        // Update progress with speed and ETA
+                        updateTotalProgress(downloadedBytes, totalBytes, startTime);
+                    }
+
+                    // Create file from chunks
+                    const chunksAll = new Uint8Array(receivedLength);
+                    let position = 0;
+                    for (const chunk of chunks) {
+                        chunksAll.set(chunk, position);
+                        position += chunk.length;
+                    }
+
+                    // Preserve folder structure by removing base folder from path
+                    const relativePath = file.path.replace(folderPath + "/", "");
+                    zip.file(relativePath, new Blob([chunksAll]));
+                    processedCount++;
+
+                } catch (fileError) {
+                    console.error(`Error downloading ${file.name}:`, fileError);
+                    const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+                    addErrorItem(fileId, file.name, fileError.message);
+                    errorCount++;
+                }
+            });
+
+            await Promise.all(chunkPromises);
+        }
+
+        if (window.downloadCancelled) {
+            throw new Error('Download cancelled by user');
+        }
+        
+        if (processedCount === 0) {
+            throw new Error('No files could be downloaded');
+        }
+
+        updateMainStatus("Creating zip file...");
+
+        const content = await zip.generateAsync({
+            type: 'blob',
+            compression: "DEFLATE",
+            compressionOptions: { level: 6 },
+            onUpdate: meta => updateMainStatus(`Creating zip: ${Math.round(meta.percent)}%`)
+        });
+
+        const zipUrl = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = zipUrl;
+        a.download = `${folderName}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(zipUrl);
+        document.body.removeChild(a);
+
+        window.downloadCompleted = true;
+        const successMessage = `Downloaded ${processedCount} files${errorCount ? ` (${errorCount} failed)` : ''} - ${formatBytes(content.size)}`;
+        document.getElementById('download-title').textContent = successMessage;
+        updateMainStatus('Download complete!');
+        
+        // Auto-hide timer
+        setTimeout(hideProgressContainer, 30000);
+
+    } catch (error) {
+        if (error.message !== 'Download cancelled by user') {
+            console.error('Download error:', error);
+            updateMainStatus(`Error: ${error.message}`);
+        }
+    } finally {
+        toggleSpinner();
+    }
+}
+
         window.formatBytes = function (bytes, decimals = 2) {
             if (bytes === 0) return '0 Bytes';
 
@@ -1271,8 +1722,8 @@
                 });
         };
         // Initial Fetch
-        fetchFileList();
-        
+        fetchFileList(rootFolderPath);
+
     });
 
 </script>

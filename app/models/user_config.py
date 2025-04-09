@@ -39,6 +39,10 @@ class UserConfig(db.Model):
         return cls.query.filter_by(folder_name=folder_name).first()
     
     @classmethod
+    def get_by_user_id(cls, user_id):
+        return cls.query.filter_by(user_id=user_id).first()
+    
+    @classmethod
     def update_storage(cls,user_id,max_size):
         user_config = cls.query.filter_by(user_id=user_id).first()
         user_config.max_size = max_size

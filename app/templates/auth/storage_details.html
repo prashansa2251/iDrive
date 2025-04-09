@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Details{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <div class="fs-6">Storage Details</div>
+                </div>
+                <div class="card-body">
+                    <!-- Current Storage Information -->
+                    <div class="mb-4">
+                        <h5 class="fs-7 mb-3">Current Storage Details</h5>
+
+                        <div class="progress-stacked position-relative rounded-3 overflow-hidden">
+                            {% for user in users_storage %}
+                                <div class="progress" role="progressbar"
+                                     aria-label="{{ user.username }}"
+                                     aria-valuenow="{{ user.percentage }}"
+                                     aria-valuemin="0" aria-valuemax="100"
+                                     style="width: {{ user.percentage }}%;">
+                                    <div class="progress-bar"
+                                         style="background-color: {{ user.color }};"
+                                         data-bs-toggle="tooltip"
+                                         data-bs-placement="top"
+                                         title="{{ user.username }}: {{ user.used }} ({{ user.percentage | round(1) }}%)">
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted fs-8">Used: <span id="usedStorage">{{storage_info.used}}</span></small>
+                            <small class="text-muted fs-8">Total: <span id="totalStorage">{{storage_info.allocated}}</span></small>
+                        </div>
+                        <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
+                            {% for user in users_storage %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rounded-circle d-inline-block" 
+                                          style="width: 12px; height: 12px; background-color: {{ user.color }};">
+                                    </span>
+                                    <span class="text-muted fs-8">
+                                        {{ user.username }} ({{ user.used }})
+                                    </span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        
+                    </div>
+                    <!-- Custom Upgrade Request -->
+                    <form id="upgradeRequestForm" method="POST" action="{{url_for('auth.create_request')}}" novalidate>      
+                        <h5 class="fs-7 mb-1">Request more storage</h5>                
+                        <div class="mb-3">
+                            <label for="requestSize" class="form-label fs-8">Requested Size</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="requestSize" name="request_size" 
+                                       step="0.1" min="1" required>
+                                <select class="form-select" id="storageUnit" name="storage_unit" style="max-width: 120px;">
+                                    <option value="MB" selected>MB</option>
+                                    <option value="GB">GB</option>
+                                </select>
+                            </div>
+                            <div class="invalid-feedback fs-8">
+                                Please enter a valid storage size (minimum 1 MB).
+                            </div>
+                        </div>
+                        
+                        <div class="row  justify-content-center">
+                            <div class="col">
+                                <a class="btn btn-outline-dark fs-7 no-loader w-100" href="/">Back</a>
+                            </div>
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary fs-7 w-100" id="submitBtn">Submit Request</button>
+                            </div>
+                            
+                            
+                        </div>
+                        <div class="fs-9 mt-1 text-center">
+                            <i class="fa-solid fa-info-circle me-1"></i>
+                            Admin requests typically process within 24-48 hours.
+                        </div>
+                    </form>
+                    
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('requestSize');
+        const button = document.getElementById('submitBtn');
+
+        // Initially disable
+        button.disabled = true;
+
+        input.addEventListener('input', function () {
+            button.disabled = input.value.trim() === '';
+        });
+    });
+</script>
+{% endblock %}
