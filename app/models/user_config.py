@@ -11,7 +11,7 @@ class UserConfig(db.Model):
     
     user = db.relationship("User", backref=db.backref('users', lazy='dynamic'))
     
-    def __init__(self, folder_name, max_size,storage_upgraded,user_id):
+    def __init__(self, folder_name, max_size,user_id,storage_upgraded=False):
         self.folder_name = folder_name
         self.max_size = max_size
         self.user_id = user_id

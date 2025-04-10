@@ -1,6 +1,7 @@
 from flask import Flask, request
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
+from app.classes.helpers import HelperClass
 from app.routes.drive import create_drive_blp
 from app.routes.wasabi_drive import app as wasabi_drive_blp
 from app.routes.auth import blp as auth_blp
@@ -40,7 +41,15 @@ def create_app():
     @socketio.on('disconnect')
     def handle_disconnect():
         print(f'Client disconnected: {request.sid}')
-        
+    @app.context_processor
+    def inject_message():
+        message = HelperClass.get_message()
+        if current_user.is_authenticated:        
+            marker = HelperClass.get_superuser_requests(current_user.id)[1]
+            return dict(message=message,marker=marker)
+        else:
+            return dict(message=message)
+
     app.register_blueprint(create_drive_blp(socketio))
     app.register_blueprint(wasabi_drive_blp,url_prefix='/wasabi')
     app.register_blueprint(auth_blp,url_prefix='/auth')

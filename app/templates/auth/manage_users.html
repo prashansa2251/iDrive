@@ -17,9 +17,11 @@
                 </a>
                 <a type="button" class="btn btn-outline-primary position-relative" href="/auth/requests" id="requests">
                     Requests
+                    {%if marker%}
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                        4
+                        {{marker}}
                     </span>
+                    {%endif%}
                 </a>
             </div>
         </div>
@@ -83,13 +85,14 @@
                                 </td>
                                 <td class="align-middle text-center">
                                     <div class="gap-2">
+                                        {%if user.storage_allocated == '0.0 MB'%}
                                         <button class="btn btn-sm btn-outline-primary storage-assign-btn no-loader fs-8"
-                                            data-bs-toggle="modal" data-bs-target="#storageModal"
                                             data-user-id="{{ user.id }}" data-username="{{ user.username }}"
                                             data-storage-unit="{{ user.storage_unit }}"
                                             data-current-storage="{{ user.storage_allocated }}">
                                             <i class="fa-solid fa-hard-drive me-1"></i>Assign Storage
                                         </button>
+                                        {%endif%}
                                         <button
                                             class="btn btn-sm {{ 'btn-outline-danger' if user.is_active else 'btn-outline-success' }} toggle-user-status fs-8"
                                             data-user-id="{{ user.id }}" data-current-status="{{ user.is_active }}">
@@ -97,7 +100,6 @@
                                             {{ 'Deactivate' if user.is_active else 'Activate' }}
                                         </button>
                                         <button class="btn btn-sm fs-8 btn-outline-info no-loader reporting-btn"
-                                            data-bs-toggle="modal" data-bs-target="#reportingModal"
                                             data-user-id="{{ user.id }}" data-username="{{ user.username }}"
                                             data-reporting-username="{{ user.reporting_to}}"
                                             data-reporting-email="{{ user.reporting_to_email}}"
@@ -195,6 +197,9 @@
                                 <label for="superUsers" class="form-label fs-7">Select Reporting Manager</label>
                                 <select class="form-select" id="superUsers" name="superUsers">
                                     <option value="" selected>Select Reporting Manager</option>
+                                    {%if not current_user.superuser_id%}
+                                    <option value="0">None(Super Admin)</option>
+                                    {%endif%}
                                     {%for user in superusers%}
                                     <option value="{{user.id}}">{{user.username}} ({{user.email}})</option>
                                     {%endfor%}

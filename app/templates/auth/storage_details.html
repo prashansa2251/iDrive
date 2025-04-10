@@ -51,38 +51,7 @@
                         
                     </div>
                     <!-- Custom Upgrade Request -->
-                    <form id="upgradeRequestForm" method="POST" action="{{url_for('auth.create_request')}}" novalidate>      
-                        <h5 class="fs-7 mb-1">Request more storage</h5>                
-                        <div class="mb-3">
-                            <label for="requestSize" class="form-label fs-8">Requested Size</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="requestSize" name="request_size" 
-                                       step="0.1" min="1" required>
-                                <select class="form-select" id="storageUnit" name="storage_unit" style="max-width: 120px;">
-                                    <option value="MB" selected>MB</option>
-                                    <option value="GB">GB</option>
-                                </select>
-                            </div>
-                            <div class="invalid-feedback fs-8">
-                                Please enter a valid storage size (minimum 1 MB).
-                            </div>
-                        </div>
-                        
-                        <div class="row  justify-content-center">
-                            <div class="col">
-                                <a class="btn btn-outline-dark fs-7 no-loader w-100" href="/">Back</a>
-                            </div>
-                            <div class="col">
-                                <button type="submit" class="btn btn-primary fs-7 w-100" id="submitBtn">Submit Request</button>
-                            </div>
-                            
-                            
-                        </div>
-                        <div class="fs-9 mt-1 text-center">
-                            <i class="fa-solid fa-info-circle me-1"></i>
-                            Admin requests typically process within 24-48 hours.
-                        </div>
-                    </form>
+                    
                     
                     
                 </div>
@@ -93,17 +62,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-    window.addEventListener('DOMContentLoaded', function () {
-        const input = document.getElementById('requestSize');
-        const button = document.getElementById('submitBtn');
 
-        // Initially disable
-        button.disabled = true;
-
-        input.addEventListener('input', function () {
-            button.disabled = input.value.trim() === '';
-        });
-    });
-</script>
 {% endblock %}

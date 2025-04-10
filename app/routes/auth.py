@@ -1,13 +1,13 @@
-import math
-from flask import Blueprint, flash, get_flashed_messages, json, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, json, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from app.models.user_config import UserConfig
 from app.models.users import User
 from app.classes.helpers import HelperClass
-from app.routes.drive import get_s3_client
+from app.models.requests import Requests
 blp = Blueprint("auth","auth")
 
-
+        
+        
 @blp.route('/register', methods=['POST','GET'])
 def register():
     message = HelperClass.get_message()
@@ -26,6 +26,7 @@ def register():
         folder_name = str(user.id)+'_'+user.username.lower().replace(' ','_')
         user_config = UserConfig(folder_name,0.0,user.id)
         user_config.save_to_db()
+        HelperClass.create_or_get_user_folder(user.id)
         flash('Registered successfully!')
         return redirect(url_for('auth.login'))
     return render_template("auth/register.html", 
@@ -100,19 +101,117 @@ def storage_details():
     users_storage = HelperClass.prepare_multi_progress_bar(storage_info)
     return render_template('auth/storage_details.html',storage_info = storage_info,users_storage=users_storage)
 
-@blp.route('/create_request', methods=['POST'])
+@blp.route('/request_storage', methods=['GET','POST'])
 @login_required
-def create_request():
-    if current_user.is_authenticated:
+def request_storage():
+    if not current_user.is_authenticated:
+        flash('You must be logged in to view this page!')
+        return redirect(url_for('auth.login'))
+    
+    if request.method=='POST':
         request_size = request.form.get('request_size')
         storage_unit = request.form.get('storage_unit')
         
         requests= HelperClass.create_request(current_user.id,request_size,storage_unit)
         if requests:
             flash('Storage upgrade request created successfully!')
-            return redirect(url_for('drive.index'))
-    flash('You must be logged in to view this page!')
-    return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.request_storage'))
+        flash('You must be logged in to view this page!')
+        return redirect(url_for('auth.login'))
+    
+    requests,allocated_storage = HelperClass.get_user_requests(current_user.id)
+    
+    return render_template('auth/request_storage.html',requests = requests,allocated_storage=allocated_storage)
+    
+    
+@blp.route('/approve_request',methods=['POST'])
+@login_required
+def approve_request():
+    if not current_user.is_authenticated:
+        flash('You must be logged in to view this page!')
+        return redirect(url_for('auth.login'))
+    
+    req_size = request.form.get('req_size')
+    storage_unit = request.form.get('storage_unit')
+    user_id = request.form.get('user_id')
+    request_id = request.form.get('request_id')
+    remarks = request.form.get('remarks')
+    storage = HelperClass.get_users_data(current_user.id)[1]
+    data = {
+        'req_size': req_size,
+        'storage_unit': storage_unit,
+        'user_id': user_id,
+        'request_id': request_id,
+        'remarks': remarks,
+        'storage_data': storage
+    }
+    approved = HelperClass.approve_request(data)
+    if approved:
+        flash('Request approved successfully!')
+        return redirect(url_for('auth.requests'))
+    else:
+        flash('There was an error while approving request!')
+        return redirect(url_for('auth.requests'))
+
+    
+@blp.route('/reject_request',methods=['POST'])
+@login_required
+def reject_request():
+    if not current_user.is_authenticated:
+        flash('You must be logged in to view this page!')
+        return redirect(url_for('auth.login'))
+    
+    req_size = request.form.get('req_size')
+    user_id = request.form.get('user_id')
+    request_id = request.form.get('request_id')
+    remarks = request.form.get('remarks')
+    
+    data = {
+        'req_size': req_size,
+        'user_id': user_id,
+        'request_id': request_id,
+        'remarks': remarks
+    }
+    rejected = HelperClass.reject_request(data)
+    if rejected:
+        flash('Request approved successfully!')
+        return redirect(url_for('auth.requests'))
+    else:
+        flash('There was an error while approving request!')
+        return redirect(url_for('auth.requests'))
+    
+@blp.route('/cancel_request/<int:request_id>')
+@login_required
+def cancel_request(request_id):
+    try:
+        request_obj = HelperClass.cancel_request(request_id)
+        if request_obj:
+            flash('Request cancelled successfully!')
+            return redirect(url_for('auth.request_storage'))
+        else:
+            flash('There was an error while connecting to database!')
+            return redirect(url_for('auth.request_storage'))
+    except Exception as e:
+        print(e)
+        return redirect(url_for('auth.request_storage'))
+    
+@blp.route('/mark_request_read/<int:request_id>')
+@login_required
+def mark_request_read(request_id):
+    try:
+        request_obj = Requests.get_by_id(request_id)
+        request_obj.marked_read = True
+        request_obj.update_db()
+        if request_obj:
+            flash('Request marked as read successfully!')
+            return redirect(url_for('auth.requests'))
+        else:
+            flash('There was an error while connecting to database!')
+            return redirect(url_for('auth.requests'))
+    except Exception as e:
+        print(e)
+        flash('There was an error while connecting to database!')
+        return redirect(url_for('auth.requests'))
 
 @blp.route('/requests',methods=['POST','GET'])
 @login_required
@@ -125,7 +224,8 @@ def requests():
         else:
             flash("Only admin can approve requests!")
             
-    requests,marker = HelperClass.get_requests(current_user.id)
+    requests,marker = HelperClass.get_superuser_requests(current_user.id)
+    
     return render_template('auth/requests.html',
                             requests = requests,
                             marker = marker,

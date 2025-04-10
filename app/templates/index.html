@@ -677,7 +677,7 @@
                 `}
                 <div class='p-3'>
                 <div class="text-center mb-2">
-                    ${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-chalkboard-user text-muted fs-3"></i>`:`<i class="fa-solid fa-folder text-muted fs-3"></i>`}` : getFileIcon(item.original_filename)}
+                    ${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-user-tag text-muted fs-3"></i>`:`<i class="fa-solid fa-folder text-muted fs-3"></i>`}` : getFileIcon(item.original_filename)}
                 </div>
                 <div class="text-center">
                     <h6 class="card-title text-truncate mb-1">${item.name}</h6>
@@ -727,7 +727,7 @@
 
                 // Set row HTML content
                 row.innerHTML = `
-            <td class="p-1 align-middle text-center">${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-chalkboard-user text-muted fs-4"></i>`:`<i class="fa-solid fa-folder text-muted fs-4"></i>`}` : getFileIcon(item.original_filename)}</td>
+            <td class="p-1 align-middle text-center">${item.is_directory ? `${item.user_folder ? `<i class="fa-solid fa-user-tag text-muted fs-4"></i>`:`<i class="fa-solid fa-folder text-muted fs-4"></i>`}` : getFileIcon(item.original_filename)}</td>
             <td class='fs-7 align-middle'>${item.name}</td>
             <td class='text-muted fs-8 align-middle'>${item.size}</td>
             <td class='text-muted fs-8 align-middle'>${item.upload_date || ''}</td>

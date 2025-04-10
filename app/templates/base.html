@@ -148,10 +148,15 @@
                 <div class="btn-toolbar justify-content-end gap-2" role="toolbar" aria-label="Toolbar with button groups">
                     <div class="btn-group mr-2" role="group" aria-label="First group">
                         
-                        <button class="btn btn-light text-primary no-loader rounded-5 fw-bold" type="button" id="userDropdown"
+                        <button class="btn btn-light text-primary no-loader rounded-5 fw-bold position-relative" type="button" id="userDropdown"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             {% if current_user.is_authenticated %}
-                            <span class="fs-6">{{ current_user.username[0]|upper }}</span> 
+                            <span class="fs-6">{{ current_user.username[0]|upper }}</span>
+                            {%if marker and 'manage_users' not in request.url%}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                {{marker}}
+                            </span>
+                            {%endif%} 
                             {%else%}
                             <i class="fa-solid fa-user fa-lg"></i>
                             {%endif%}
@@ -173,15 +178,29 @@
                                 </div>
                         
                                 <hr class="my-2">
-                                <a class="dropdown-item fs-7" href="{{ url_for('auth.storage_details') }}">
-                                    <i class="fa-solid fa-cloud-arrow-up me-2"></i> Storage Details
+                                <a class="dropdown-item fs-7" href="{{ url_for('drive.index') }}">
+                                    <i class="fa-solid fa-folder-open me-2"></i> Browse Files
                                 </a>
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.storage_details') }}">
+                                    <i class="fa-solid fa-database me-2"></i> Storage Details
+                                </a>
+                                <hr class="my-2">
+                                {% if current_user.superuser_id %}
+                                <a class="dropdown-item fs-7" href="{{ url_for('auth.request_storage') }}">
+                                    <i class="fa-solid fa-cloud-arrow-up me-2"></i> Request Storage 
+                                </a>
+                                {% endif %}
                                 <a class="dropdown-item fs-7" href="{{ url_for('auth.change_password') }}">
                                     <i class="fa-solid fa-user-pen me-2"></i> Change Password
                                 </a>
                                 {% if current_user.isAdmin %}
-                                    <a class="dropdown-item fs-7" href="{{ url_for('auth.manage_users') }}">
+                                    <a class="dropdown-item fs-7 position-relative" href="{{ url_for('auth.manage_users') }}">
                                         <i class="fa-solid fa-user-gear me-2"></i> Manage Users
+                                        {%if marker and 'manage_users' not in request.url%}
+                                        <span class="position-absolute bottom-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                            {{marker}}
+                                        </span>
+                                        {%endif%} 
                                     </a>                                    
                                 {% endif %}
                         
@@ -243,7 +262,7 @@
     <!-- Loader -->
     <div id="loading-spinner" class="overlay d-none">
         <div id="loading-wrapper">
-            <div id="loading-text" class="fw-bold mb-2">{%if home_page%}GETTING YOUR FILES{%else%}LOADING{%endif%}</div>
+            <div id="loading-text" class="fw-bold mb-2">LOADING</div>
             <div class="dots-loader">
                 <span></span><span></span><span></span>
             </div>

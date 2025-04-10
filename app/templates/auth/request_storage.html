@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Storage Details{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white text-center">
+                    <div class="fs-6">Request More Storgae</div>
+                </div>
+                <div class="card-body">                    
+                    <!-- Custom Upgrade Request -->
+                    <div class="form">
+                        <form id="upgradeRequestForm" method="POST" action="{{url_for('auth.request_storage')}}" novalidate>      
+                            <div class="mb-3">
+                                <label for="requestSize" class="form-label fs-8">Requested Size</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="requestSize" name="request_size" 
+                                        step="0.1" min="1" required>
+                                    <select class="form-select" id="storageUnit" name="storage_unit" style="max-width: 120px;">
+                                        <option value="MB" selected>MB</option>
+                                        <option value="GB">GB</option>
+                                    </select>
+                                </div>
+                                <div class="invalid-feedback fs-8">
+                                    Please enter a valid storage size (minimum 1 MB).
+                                </div>
+                            </div>
+                            
+                            <div class="row  justify-content-center">
+                                <div class="col">
+                                    <a class="btn btn-outline-dark fs-7 no-loader w-100" href="/">Back</a>
+                                </div>
+                                <div class="col">
+                                    <button type="submit" class="btn btn-primary fs-7 w-100" id="submitBtn">Submit Request</button>
+                                </div>
+                                
+                                
+                            </div>
+                            <div class="fs-9 mt-1 text-center">
+                                <i class="fa-solid fa-info-circle me-1"></i>
+                                Admin requests typically process within 24-48 hours.
+                            </div>
+                        </form>
+                    </div>
+                    {%if requests%}
+                    <hr class="my-4 mx-2">
+                    <table class="table table-sm table-hover" id="requestsTable">
+                        <thead>
+                            <tr>
+                                <th class="">Requested Size</th>
+                                <th class="">Approved Size</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Remarks</th>
+                                <th class="text-center">Created/Updated on</th>
+                                <th class="text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request in requests %}
+                            <tr>
+                                <td class="align-middle">{{ request.display_size }}</td>
+                                <td class="align-middle">{{ request.approved_size }}</td>
+                                <td class="text-center align-middle">
+                                    {% if request.status == 'Pending' %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    {% elif request.status == 'Approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elif request.status == 'Cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center align-middle">{{ request.remarks }}</td>
+                                <td class="text-center align-middle">{{ request.requested_on }}</td>
+                                
+                                <td class="text-center align-middle">
+                                    {% if request.status == 'Pending' %}
+                                        <a href="{{ url_for('auth.cancel_request', request_id=request.id) }}" 
+                                            class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-xmark"></i></a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                    </table>
+                    {%endif%}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.addEventListener('DOMContentLoaded', function () {
+        const input = document.getElementById('requestSize');
+        const button = document.getElementById('submitBtn');
+
+        // Initially disable
+        button.disabled = true;
+
+        input.addEventListener('input', function () {
+            button.disabled = input.value.trim() === '';
+        });
+    });
+</script>
+{% endblock %}

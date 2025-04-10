@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="container-fluid px-4">
-    
-    <section id="table" class="">
+
+    <section id="tableSection" class="">
         <div class="row d-flex justify-content-between align-items-center my-4">
             <div class="col-6">
                 <div class="fs-5">Request Management</div>
@@ -33,10 +33,11 @@
                     <div class="col-md-4">
                         <select id="statusFilter" class="form-select fs-7">
                             <option value="">All Requests</option>
-                            <option value="pending">Pending Requests</option>
-                            <option value="approved">Approved Requests</option>
-                            <option value="rejected">Rejected Requests</option>
-                            <option value="unread">Unread Requests</option>
+                            <option value="Pending">Pending Requests</option>
+                            <option value="Approved">Approved Requests</option>
+                            <option value="Rejected">Rejected Requests</option>
+                            <option value="Unread">Unread Requests</option>
+                            <option value="Cancelled">Cancelled Requests</option>
                         </select>
                     </div>
                 </div>
@@ -61,48 +62,53 @@
                                 <td class="align-middle fs-7">{{ request.username }}</td>
                                 <td class="align-middle fs-7">{{ request.email }}</td>
                                 <td class="text-center align-middle">
-                                    {{ request.size | filesizeformat }}
+                                    {{ request.allocated_size }}
                                 </td>
                                 <td class="text-center align-middle">
-                                    <span class="badge fs-8 text-center bg-info">{{ request.req_size | filesizeformat }}</span>
+                                    <span class="badge fs-8 text-center bg-info">{{ request.display_size }}</span>
                                 </td>
                                 <td class="text-center align-middle">
-                                    <span 
-                                        class="badge fs-8 text-center {{ 'bg-success' if request.status else 'bg-danger' }}">
-                                        {{ 'Approved' if request.status else 'Pending' }}
-                                    </span>
+                                    {% if request.status == 'Pending' %}
+                                    <span class="badge bg-warning text-dark fs-8">Pending</span>
+                                    {% elif request.status == 'Approved' %}
+                                    <span class="badge bg-success fs-8">Approved</span>
+                                    {% elif request.status == 'Cancelled' %}
+                                    <span class="badge bg-danger fs-8">Cancelled</span>
+                                    {% else %}
+                                    <span class="badge bg-danger fs-8">Rejected</span>
+                                    {% endif %}
                                 </td>
 
                                 <td class="align-middle text-center">
                                     <div class="gap-2">
-                                        {% if not request.status %}
-                                        <button class="btn btn-sm btn-outline-success approve-request-btn no-loader fs-8"
-                                            data-bs-toggle="modal" data-bs-target="#approveModal"
-                                            data-request-id="{{ request.user_id }}" 
-                                            data-username="{{ request.username }}"
-                                            data-req-size="{{ request.req_size }}">
+                                        {% if request.status == 'Pending' %}
+                                        <button
+                                            class="btn btn-sm btn-outline-success approve-request-btn no-loader fs-8 approve-request-btn"
+                                            data-user-id="{{ request.user_id }}" data-username="{{ request.username }}"
+                                            data-req-size="{{ request.display_size }}" data-req-id="{{ request.id }}">
                                             <i class="fa-solid fa-check me-1"></i>Approve
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger reject-request-btn no-loader fs-8"
-                                            data-bs-toggle="modal" data-bs-target="#rejectModal"
-                                            data-request-id="{{ request.user_id }}"
-                                            data-username="{{ request.username }}">
+                                        <button
+                                            class="btn btn-sm btn-outline-danger reject-request-btn no-loader fs-8 reject-request-btn"
+                                            data-user-id="{{ request.user_id }}" data-username="{{ request.username }}"
+                                            data-req-size="{{ request.display_size }}" data-req-id="{{ request.id }}">
                                             <i class="fa-solid fa-times me-1"></i>Reject
                                         </button>
                                         {% else %}
-                                        <button class="btn btn-sm btn-outline-secondary view-details-btn no-loader fs-8"
-                                            data-bs-toggle="modal" data-bs-target="#detailsModal"
-                                            data-request-id="{{ request.user_id }}"
-                                            data-username="{{ request.username }}"
-                                            data-remarks="{{ request.remarks }}">
+                                        <button
+                                            class="btn btn-sm btn-outline-dark view-details-btn no-loader fs-8 view-details-btn"
+                                            data-user-id="{{ request.user_id }}" data-username="{{ request.username }}"
+                                            data-request-status="{{ request.status }}" data-req-id="{{ request.id }}" data-req-size="{{ request.display_size }}"
+                                            data-remarks="{{ request.remarks }}" data-approved-size="{{ request.approved_size }}">
                                             <i class="fa-solid fa-eye me-1"></i>View Details
                                         </button>
                                         {% endif %}
                                         {% if not request.marked_read %}
-                                        <button class="btn btn-sm btn-outline-primary mark-read-btn fs-8"
-                                            data-request-id="{{ request.user_id }}">
+                                        <a class="btn btn-sm btn-outline-primary mark-read-btn fs-8"
+                                            href="{{url_for('auth.mark_request_read', request_id=request.id)}}"
+                                            data-user-id="{{ request.user_id }}" id="markReadBtn">
                                             <i class="fa-solid fa-envelope-open me-1"></i>Mark as Read
-                                        </button>
+                                        </a>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -119,258 +125,272 @@
             </div>
         </div>
     </section>
+    <section id="approveRequest" class=" mt-5 d-none">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white text-center">
+                            <h5 class="fs-6">Approve Storage Request</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="approveRequestForm" action="{{url_for('auth.approve_request')}}" method="POST">
+                                <input type="hidden" id="approveUserId" name="user_id">
+                                <input type="hidden" id="approveRequestId" name="request_id">
+                                <div class="mb-3">
+                                    <label for="approveUsername" class="form-label fs-7">Username</label>
+                                    <input type="text" class="form-control" id="approveUsername" readonly>
+                                </div>
 
-    <!-- Approve Request Modal -->
-    <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6" id="approveModalLabel">Approve Storage Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="approveRequestForm">
-                        <input type="hidden" id="approveRequestId" name="request_id">
-                        
-                        <div class="mb-3">
-                            <label for="approveUsername" class="form-label fs-7">Username</label>
-                            <input type="text" class="form-control" id="approveUsername" readonly>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="approveSize" class="form-label fs-7">Requested Size</label>
-                            <input type="text" class="form-control" id="approveSize" readonly>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="approveRemarks" class="form-label fs-7">Remarks (Optional)</label>
-                            <textarea class="form-control" id="approveRemarks" name="remarks" rows="3" placeholder="Add any remarks or notes here..."></textarea>
-                        </div>
-                        
-                        <div class="d-flex justify-content-end">
-                            <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-success">Approve Request</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+                                <div class="mb-3">
+                                    <label for="approveSize" class="form-label fs-7">Requested Size</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="approveSize" name="request_size"
+                                            step="0.1" min="1" required>
+                                        <select class="form-select" id="storageUnit" name="storage_unit"
+                                            style="max-width: 120px;">
+                                            <option value="MB" selected>MB</option>
+                                            <option value="GB">GB</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-    <!-- Reject Request Modal -->
-    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6" id="rejectModalLabel">Reject Storage Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="rejectRequestForm">
-                        <input type="hidden" id="rejectRequestId" name="request_id">
-                        
-                        <div class="mb-3">
-                            <label for="rejectUsername" class="form-label fs-7">Username</label>
-                            <input type="text" class="form-control" id="rejectUsername" readonly>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="rejectRemarks" class="form-label fs-7">Reason for Rejection</label>
-                            <textarea class="form-control" id="rejectRemarks" name="remarks" rows="3" placeholder="Please provide a reason for rejection..." required></textarea>
-                        </div>
-                        
-                        <div class="d-flex justify-content-end">
-                            <button type="button" class="btn btn-outline-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-danger">Reject Request</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+                                <div class="mb-3">
+                                    <label for="approveRemarks" class="form-label fs-7">Remarks (Optional)</label>
+                                    <textarea class="form-control" id="approveRemarks" name="remarks" rows="3"
+                                        placeholder="Add any remarks or notes here..."></textarea>
+                                </div>
 
-    <!-- View Details Modal -->
-    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6" id="detailsModalLabel">Request Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="detailsUsername" class="form-label fs-7">Username</label>
-                        <input type="text" class="form-control" id="detailsUsername" readonly>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="detailsRemarks" class="form-label fs-7">Remarks</label>
-                        <textarea class="form-control" id="detailsRemarks" rows="3" readonly></textarea>
-                    </div>
-                    
-                    <div class="d-flex justify-content-end">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button type="button" class="btn btn-outline-dark me-2 back-btn">Back</button>
+                                    <button type="submit" class="btn btn-success" id="approveRequestBtn">Approve
+                                        Request</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
+
         </div>
-    </div>
+    </section>
+    <section id="rejectRequest" class=" mt-5 d-none">
+
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white text-center">
+                            <h5 class="fs-6">Reject Storage Request</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="rejectRequestForm" action="{{url_for('auth.reject_request')}}"  method="POST">
+                                <input type="hidden" id="rejectUserId" name="user_id">
+                                <input type="hidden" id="rejectRequestId" name="request_id">
+                                <div class="mb-3">
+                                    <label for="rejectUsername" class="form-label fs-7">Username</label>
+                                    <input type="text" class="form-control" id="rejectUsername" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="rejectSize" class="form-label fs-7">Requested Size</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="rejectSize" name="request_size"
+                                            required readonly>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="rejectRemarks" class="form-label fs-7">Reason for Rejection</label>
+                                    <textarea class="form-control" id="rejectRemarks" name="remarks" rows="3"
+                                        placeholder="Please provide a reason for rejection..." required></textarea>
+                                </div>
+
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button type="button" class="btn btn-outline-dark me-2 back-btn">Back</button>
+                                    <button type="submit" class="btn btn-danger" id="rejectRequestBtn">Reject
+                                        Request</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section id="viewDetails" class=" mt-5 d-none">
+
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white text-center">
+                            <h5 class="fs-6">Reject Storage Request</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="detailsUsername" class="form-label fs-7">Username</label>
+                                <input type="text" class="form-control" id="detailsUsername" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detailsRequestedSize" class="form-label fs-7">Requested Size</label>
+                                <input type="text" class="form-control" id="detailsRequestedSize" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detailsApprovedSize" class="form-label fs-7">Approved Size</label>
+                                <input type="text" class="form-control" id="detailsApprovedSize" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detailsStatus" class="form-label fs-7">Status</label>
+                                <textarea class="form-control" id="detailsStatus" rows="3" readonly></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="detailsRemarks" class="form-label fs-7">Remarks</label>
+                                <textarea class="form-control" id="detailsRemarks" rows="3" readonly></textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-outline-dark back-btn">Back</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    $(document).ready(function() {
-        // Search functionality
-        $("#searchInput").on("keyup", function() {
-            const value = $(this).val().toLowerCase();
-            $("#requestsTable tbody tr").filter(function() {
-                $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+    document.addEventListener('DOMContentLoaded', function () {
+        const table = document.getElementById('tableSection');
+        const approveRequest = document.getElementById('approveRequest');
+        const rejectRequest = document.getElementById('rejectRequest');
+        const viewDetails = document.getElementById('viewDetails');
+        const backButtons = document.querySelectorAll('.back-btn');
+        const approveRequestForm = document.getElementById('approveRequestForm');
+        const rejectRequestForm = document.getElementById('rejectRequestForm');
+        const approveRequestBtn = document.querySelectorAll('.approve-request-btn');
+        const rejectRequestBtn = document.querySelectorAll('.reject-request-btn');
+        const viewDetailsBtn = document.querySelectorAll('.view-details-btn');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const requestsTable = document.getElementById('requestsTable');
+        const approveRequestSubmit = document.getElementById('approveRequestBtn');
+        const rejectRequestSubmit = document.getElementById('rejectRequestBtn');
+
+
+        // Event listener for approve request button
+        approveRequestBtn.forEach(button => {
+            button.addEventListener('click', function () {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                const reqSize = this.getAttribute('data-req-size');
+                const reqId = this.getAttribute('data-req-id');
+                let size = reqSize.split(' ');
+                let sizeValue = parseFloat(size[0]);
+                let sizeUnit = size[1];
+                document.getElementById('approveRequestId').value = reqId;
+                document.getElementById('storageUnit').value = sizeUnit;
+                document.getElementById('approveUserId').value = userId;
+                document.getElementById('approveUsername').value = username;
+                document.getElementById('approveSize').value = sizeValue;
+
+                table.classList.add('d-none');
+                approveRequest.classList.remove('d-none');
             });
         });
+        // Event listener for reject request button
+        rejectRequestBtn.forEach(button => {
+            button.addEventListener('click', function () {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                const reqId = this.getAttribute('data-req-id');
+                const reqSize = this.getAttribute('data-req-size');
+                document.getElementById('rejectRequestId').value = reqId;
+                document.getElementById('rejectSize').value = reqSize;
+                document.getElementById('rejectRequestId').value = userId;
+                document.getElementById('rejectUsername').value = username;
 
-        // Status filter
-        $("#statusFilter").on("change", function() {
-            const value = $(this).val().toLowerCase();
-            $("#requestsTable tbody tr").show();
-            
-            if (value === "pending") {
-                $("#requestsTable tbody tr").filter(function() {
-                    return $(this).find("td:nth-child(6) span").text().trim() !== "Pending";
-                }).hide();
-            } else if (value === "approved") {
-                $("#requestsTable tbody tr").filter(function() {
-                    return $(this).find("td:nth-child(6) span").text().trim() !== "Approved";
-                }).hide();
-            } else if (value === "rejected") {
-                $("#requestsTable tbody tr").filter(function() {
-                    return $(this).find("td:nth-child(6) span").text().trim() !== "Rejected";
-                }).hide();
-            } else if (value === "unread") {
-                $("#requestsTable tbody tr").filter(function() {
-                    return $(this).find("td:nth-child(7) span").text().trim() !== "Unread";
-                }).hide();
+                table.classList.add('d-none');
+                rejectRequest.classList.remove('d-none');
+            });
+        });
+        // Event listener for view details button
+        viewDetailsBtn.forEach(button => {
+            button.addEventListener('click', function () {
+                const userId = this.getAttribute('data-user-id');
+                const username = this.getAttribute('data-username');
+                const requestStatus = this.getAttribute('data-request-status');
+                const remarks = this.getAttribute('data-remarks');
+                const reqId = this.getAttribute('data-req-id');
+                const reqSize = this.getAttribute('data-req-size');
+                const approvedSize = this.getAttribute('data-approved-size');
+                document.getElementById('detailsRequestedSize').value = reqSize;
+                document.getElementById('detailsApprovedSize').value = approvedSize;
+                document.getElementById('detailsUsername').value = username;
+                document.getElementById('detailsStatus').value = requestStatus;
+                document.getElementById('detailsRemarks').value = remarks;
+
+                table.classList.add('d-none');
+                viewDetails.classList.remove('d-none');
+            });
+        });
+        // Event listener for back buttons
+        backButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                toggleSpinner();
+                table.classList.remove('d-none');
+                approveRequest.classList.add('d-none');
+                rejectRequest.classList.add('d-none');
+                viewDetails.classList.add('d-none');
+            });
+        });
+        // Event listener for search input
+        searchInput.addEventListener('input', function () {
+            const filter = this.value.toLowerCase();
+            const rows = requestsTable.getElementsByTagName('tr');
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let found = false;
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().includes(filter)) {
+                        found = true;
+                        break;
+                    }
+                }
+                rows[i].style.display = found ? '' : 'none';
             }
         });
+        // Event listener for status filter
+        statusFilter.addEventListener('change', function () {
+            const filter = this.value.toLowerCase();
+            const rows = requestsTable.getElementsByTagName('tr');
 
-        // Approve button
-        $(".approve-request-btn").click(function() {
-            const requestId = $(this).data("request-id");
-            const username = $(this).data("username");
-            const reqSize = $(this).data("req-size");
-            
-            $("#approveRequestId").val(requestId);
-            $("#approveUsername").val(username);
-            $("#approveSize").val(formatBytes(reqSize));
-        });
+            for (let i = 1; i < rows.length; i++) {
+                const statusCell = rows[i].getElementsByTagName('td')[4];
+                const markReadBtn = rows[i].querySelector('a[id="markReadBtn"]');
 
-        // Reject button
-        $(".reject-request-btn").click(function() {
-            const requestId = $(this).data("request-id");
-            const username = $(this).data("username");
-            
-            $("#rejectRequestId").val(requestId);
-            $("#rejectUsername").val(username);
-        });
-
-        // View details button
-        $(".view-details-btn").click(function() {
-            const requestId = $(this).data("request-id");
-            const username = $(this).data("username");
-            const remarks = $(this).data("remarks") || "No remarks provided";
-            
-            $("#detailsUsername").val(username);
-            $("#detailsRemarks").val(remarks);
-        });
-
-        // Mark as read button
-        $(".mark-read-btn").click(function() {
-            const requestId = $(this).data("request-id");
-            
-            // Send AJAX request to mark as read
-            $.ajax({
-                url: "/admin/request/mark-read",
-                type: "POST",
-                data: { request_id: requestId },
-                success: function(response) {
-                    // Update UI
-                    location.reload();
-                },
-                error: function(xhr, status, error) {
-                    alert("Error marking request as read: " + error);
+                if (statusCell) {
+                    if (filter === 'all requests') {
+                        rows[i].style.display = '';
+                    } else if (filter === 'unread') {
+                        // Check if the row has a markReadBtn (which indicates it's unread)
+                        if (markReadBtn) {
+                            rows[i].style.display = '';
+                        } else {
+                            rows[i].style.display = 'none';
+                        }
+                    } else {
+                        // For all other filters, check the status text
+                        const statusText = statusCell.textContent.toLowerCase();
+                        rows[i].style.display = statusText.includes(filter) ? '' : 'none';
+                    }
                 }
-            });
-        });
-
-        // Submit approve request form
-        $("#approveRequestForm").submit(function(e) {
-            e.preventDefault();
-            
-            const requestId = $("#approveRequestId").val();
-            const remarks = $("#approveRemarks").val();
-            
-            // Send AJAX request to approve
-            $.ajax({
-                url: "/admin/request/approve",
-                type: "POST",
-                data: { 
-                    request_id: requestId,
-                    remarks: remarks
-                },
-                success: function(response) {
-                    // Close modal and reload page
-                    $("#approveModal").modal("hide");
-                    location.reload();
-                },
-                error: function(xhr, status, error) {
-                    alert("Error approving request: " + error);
-                }
-            });
-        });
-
-        // Submit reject request form
-        $("#rejectRequestForm").submit(function(e) {
-            e.preventDefault();
-            
-            const requestId = $("#rejectRequestId").val();
-            const remarks = $("#rejectRemarks").val();
-            
-            if (!remarks.trim()) {
-                alert("Please provide a reason for rejection");
-                return;
             }
-            
-            // Send AJAX request to reject
-            $.ajax({
-                url: "/admin/request/reject",
-                type: "POST",
-                data: { 
-                    request_id: requestId,
-                    remarks: remarks
-                },
-                success: function(response) {
-                    // Close modal and reload page
-                    $("#rejectModal").modal("hide");
-                    location.reload();
-                },
-                error: function(xhr, status, error) {
-                    alert("Error rejecting request: " + error);
-                }
-            });
         });
-        
-        // Helper function to format bytes
-        function formatBytes(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
-            
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-            
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-        }
     });
 </script>
 {% endblock %}

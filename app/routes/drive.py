@@ -52,7 +52,7 @@ def create_drive_blp(socketio):
                 # If a specific folder path is provided, this is a directory browsing request
                 if folder_path:
                     # First, determine if this is the user's main folder
-                    user_folder = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
+                    user_folder = HelperClass.create_or_get_user_folder(current_user.id)
                     user_folder_path = user_folder + "/"
                     folder_array, superadmin = HelperClass.get_folder_array(current_user.id)
                     
@@ -321,7 +321,7 @@ def create_drive_blp(socketio):
                         
                         if not folder_array:
                             # Create user folder if not in array
-                            user_folder = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
+                            user_folder = HelperClass.create_or_get_user_folder(current_user.id)
                             folder_array = [user_folder]
                         
                         # First, list files and folders in the user's own folder (position 0)
@@ -437,9 +437,9 @@ def create_drive_blp(socketio):
             if current_user.isAdmin and current_user.superuser_id == 0:
                 folder_path = '/'
             else:
-                folder_path = HelperClass.create_or_get_user_folder(get_s3_client(), current_user.id) + "/"
-        
-        return render_template('index.html', home_page=True, flash_message=message, folder_path=folder_path)
+                folder_path = HelperClass.create_or_get_user_folder(current_user.id) + "/"
+            
+        return render_template('index.html', flash_message=message, folder_path=folder_path)
         
     
     @blp.route('/upload', methods=['GET'])
@@ -469,8 +469,8 @@ def create_drive_blp(socketio):
             # Generate secure filename
             s3_client = get_s3_client()
             foldername = session.get('current_path', '')
-            if not foldername:
-                foldername = HelperClass.create_or_get_user_folder(s3_client, current_user.id)+'/'
+            if foldername == '/':
+                foldername = HelperClass.create_or_get_user_folder(current_user.id)+'/'
             
             
             # Check if file can be uploaded (storage limits)
@@ -724,7 +724,6 @@ def create_drive_blp(socketio):
     def storage_status():
         if not current_user.is_authenticated:
             return redirect(url_for('auth.login'))
-        s3_client = get_s3_client()
         storage_status = HelperClass.get_storage_status(current_user.id)
         return jsonify(storage_status),200
     
@@ -737,7 +736,7 @@ def create_drive_blp(socketio):
             current_path = request.form.get('current_path')
             folder_name = request.form.get('folder_name')
             if not current_path or not current_path.strip():
-                current_path = HelperClass.create_or_get_user_folder(s3_client, current_user.id)
+                current_path = HelperClass.create_or_get_user_folder(current_user.id)
             
             # Validate folder name
             if not folder_name or '/' in folder_name:

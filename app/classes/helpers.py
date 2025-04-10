@@ -27,7 +27,8 @@ class HelperClass():
         return version
     
     @classmethod
-    def create_or_get_user_folder(cls,s3_client,user_id):
+    def create_or_get_user_folder(cls,user_id):
+        s3_client = get_s3_client()
         folder_name = UserConfig.get_folder_name(user_id)
         check_folder = s3_client.list_objects_v2(Bucket=BUCKET_NAME,Prefix=folder_name + "/", MaxKeys=1)
         folder_exists = "Contents" in check_folder
@@ -152,10 +153,11 @@ class HelperClass():
             
         user_storage_occupied = 0
         s3_client = get_s3_client()
-        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
+        folder_name = cls.create_or_get_user_folder(user_id)
         folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-        for file in folder_files['Contents']:
-            user_storage_occupied += file.get('Size', 0)
+        if 'Contents' in folder_files:
+            for file in folder_files['Contents']:
+                user_storage_occupied += file.get('Size', 0)
         user_storage_occupied = round(float(user_storage_occupied / (1024 * 1024)),2)
         total_storage_occupied = total_storage_occupied + user_storage_occupied
         total_storage_remaining = int(total_storage_allocated) - int(total_storage_occupied)
@@ -231,10 +233,11 @@ class HelperClass():
         user_ids = User.get_subordinates(user_id,True)
         used_storage_in_bytes = 0 
         for id in user_ids:
-            folder_name = cls.create_or_get_user_folder(s3_client,id)
+            folder_name = cls.create_or_get_user_folder(id)
             folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-            for file in folder_files['Contents']:
-                    used_storage_in_bytes += file.get('Size', 0)
+            if 'Contents' in folder_files:
+                for file in folder_files['Contents']:
+                        used_storage_in_bytes += file.get('Size', 0)
         used_storage_mb = round(float(used_storage_in_bytes / (1024 * 1024)),2) # Convert bytes to MB
         allocated_storage = UserConfig.get_allocated_storage(user_id)
         storage ={'used':used_storage_mb,'allocated':allocated_storage,'remaining':allocated_storage - used_storage_mb}
@@ -256,10 +259,11 @@ class HelperClass():
             
         user_storage_occupied = 0
         s3_client = get_s3_client()
-        folder_name = cls.create_or_get_user_folder(s3_client,user_id)
+        folder_name = cls.create_or_get_user_folder(user_id)
         folder_files = s3_client.list_objects_v2(Bucket=BUCKET_NAME, Prefix=folder_name + "/")
-        for file in folder_files['Contents']:
-            user_storage_occupied += file.get('Size', 0)
+        if 'Contents' in folder_files:
+            for file in folder_files['Contents']:
+                user_storage_occupied += file.get('Size', 0)
         user_storage_occupied = round(float(user_storage_occupied / (1024 * 1024)),2)
         total_storage_occupied = float(storage_occupied) + float(user_storage_occupied)
         total_storage_allocated = UserConfig.get_allocated_storage(user_id)
@@ -324,16 +328,18 @@ class HelperClass():
         superuser_id = user.superuser_id
         if req_unit == 'GB':
             req_size = math.ceil(float(req_size) * 1024)
-        request = Requests(status=False,
-                           user_id=user_id,
-                           req_size=req_size,
-                           marked_read=False,
-                           superuser_id=superuser_id)
+        request = Requests(status='Pending',
+                   user_id=user_id,
+                   req_size=req_size,
+                   marked_read=False,
+                   remarks='Request forwarded to admin',
+                   requested_on=HelperClass.convert_to_ist(datetime.now()),
+                   superuser_id=superuser_id)
         request.save_to_db()
         return True
     
     @classmethod
-    def get_requests(cls,user_id):
+    def get_superuser_requests(cls,user_id):
         superadmin = User.check_superadmin(user_id)
         if superadmin:
             user_id = 0
@@ -343,6 +349,76 @@ class HelperClass():
             for request in requests:
                 if not request['marked_read']:
                     unread_requests += 1
+                request['allocated_size'] = cls.get_formatted_storage(request['size'])[0]
                 request['display_size'] = cls.get_formatted_storage(request['req_size'])[0]
-
+                request['requested_on'] = request['requested_on'].strftime('%Y-%m-%d %H:%M IST')
+                request['status'] = str(request['status']).capitalize()
+                request['remarks'] = str(request['remarks']).capitalize()
+                request['approved_size'] = cls.get_formatted_storage(request['approved_size'])[0]
         return requests,unread_requests
+    
+    @classmethod
+    def get_user_requests(cls,user_id):
+        requests = Requests.get_user_requests(user_id)
+        allocated_size = cls.get_formatted_storage(UserConfig.get_allocated_storage(user_id))[0]
+        if requests:
+            for request in requests:
+                request['display_size'] = cls.get_formatted_storage(request['req_size'])[0]
+                request['requested_on'] = request['requested_on'].strftime('%Y-%m-%d %H:%M IST')
+                request['status'] = str(request['status']).capitalize()
+                request['remarks'] = str(request['remarks']).capitalize()
+                request['approved_size'] = cls.get_formatted_storage(request['approved_size'])[0]
+                request['allocated_size'] = cls.get_formatted_storage(request['size'])[0]
+        return requests,allocated_size
+    
+    @classmethod
+    def cancel_request(cls,request_id):
+        request = Requests.get_by_id(request_id)
+        if request:
+            request.status = 'Cancelled'
+            request.remarks = 'Request Cancelled by User'
+            request.marked_read = True
+            request.update_db()
+            return True
+        return False
+    
+    @classmethod
+    def approve_request(cls,data):
+        if data['storage_unit'] == 'GB':
+            data['req_size'] = math.ceil(float(data['req_size']) * 1024)
+        if not data['remarks']:
+            data['remarks'] = 'Request Approved by Admin'
+        data['original_storage'] = UserConfig.get_allocated_storage(data['user_id'])
+        data['storage_updated'] = data['original_storage'] + data['req_size']
+        data['original_unit'] = 'MB'
+        data['udated_unit'] = 'MB'
+
+        update_storage = HelperClass.update_user_storage(data)
+        if not update_storage:
+            return False
+        request = Requests.get_by_id(data['request_id'])
+        if request:
+            request.status = 'Approved'
+            request.remarks = data['remarks']
+            request.approved_size = data['req_size']
+            request.marked_read = True
+            request.requested_on = HelperClass.convert_to_ist(datetime.now())
+            request.update_db()
+            return True
+        return False
+    
+    @classmethod
+    def reject_request(cls,data):
+        if not data['remarks']:
+            data['remarks'] = 'Request Rejected by Admin'
+        
+        request = Requests.get_by_id(data['request_id'])
+        if request:
+            request.status = 'Rejected'
+            request.remarks = data['remarks']
+            request.approved_size = 0
+            request.marked_read = True
+            request.requested_on = HelperClass.convert_to_ist(datetime.now())
+            request.update_db()
+            return True
+        return False

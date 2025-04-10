@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     isAdmin = db.Column(db.Boolean, nullable=False, default=False)
     superuser_id = db.Column(db.Integer)
     
-    def __init__(self, username,email, password,isActive,isAdmin,superuser_id):
+    def __init__(self, username,email, password,isActive,isAdmin,superuser_id=1):
         self.email = email
         self.username = username
         self.password = password
@@ -206,7 +206,12 @@ class User(UserMixin, db.Model):
         return True
     
     @classmethod
+    def get_only_users(cls):
+        return cls.query.filter(cls.superuser_id != 0).all()
+    
+    @classmethod
     def get_subordinates(cls,user_id,folders):
+        
         query = text("""
             WITH RECURSIVE subordinates AS (
                 SELECT id
@@ -225,8 +230,14 @@ class User(UserMixin, db.Model):
             id_array = [user_id,]
         else:
             id_array = []
-        result = db.session.execute(query, {"user_id": user_id})
+        super_admin = cls.check_superadmin(user_id)
+        if super_admin:
+            result = cls.get_only_users()
+        else:
+            result = db.session.execute(query, {"user_id": user_id})
         for row in result:
             id_array.append(row.id)
         return id_array
+    
+    
     
