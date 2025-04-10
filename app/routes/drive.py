@@ -732,8 +732,11 @@ def create_drive_blp(socketio):
     def create_folder():
         try:
             s3_client = get_s3_client()
-            
+            superadmin = current_user.isAdmin and current_user.superuser_id == 0
             current_path = request.form.get('current_path')
+            if superadmin:
+                if current_path == '/':
+                    current_path = HelperClass.create_or_get_user_folder(current_user.id)
             folder_name = request.form.get('folder_name')
             if not current_path or not current_path.strip():
                 current_path = HelperClass.create_or_get_user_folder(current_user.id)
