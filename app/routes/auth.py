@@ -131,7 +131,7 @@ def approve_request():
         flash('You must be logged in to view this page!')
         return redirect(url_for('auth.login'))
     
-    req_size = request.form.get('req_size')
+    req_size = request.form.get('request_size')
     storage_unit = request.form.get('storage_unit')
     user_id = request.form.get('user_id')
     request_id = request.form.get('request_id')
@@ -161,7 +161,7 @@ def reject_request():
         flash('You must be logged in to view this page!')
         return redirect(url_for('auth.login'))
     
-    req_size = request.form.get('req_size')
+    req_size = request.form.get('request_size')
     user_id = request.form.get('user_id')
     request_id = request.form.get('request_id')
     remarks = request.form.get('remarks')
@@ -174,7 +174,7 @@ def reject_request():
     }
     rejected = HelperClass.reject_request(data)
     if rejected:
-        flash('Request approved successfully!')
+        flash('Request rejected successfully!')
         return redirect(url_for('auth.requests'))
     else:
         flash('There was an error while approving request!')
@@ -218,7 +218,7 @@ def mark_request_read(request_id):
 def requests():
     if request.method=='POST':
         if current_user.isAdmin:
-            pass
+            
             flash("The request(s) is/are approved!!")
             return jsonify({'redirect_url': url_for('drive.index')})
         else:

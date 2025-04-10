@@ -340,9 +340,9 @@ class HelperClass():
     
     @classmethod
     def get_superuser_requests(cls,user_id):
-        superadmin = User.check_superadmin(user_id)
-        if superadmin:
-            user_id = 0
+        # superadmin = User.check_superadmin(user_id)
+        # if superadmin:
+        #     user_id = 0
         requests = Requests.get_requests_superuser(user_id)
         unread_requests=0
         if requests:
@@ -391,7 +391,7 @@ class HelperClass():
         data['original_storage'] = UserConfig.get_allocated_storage(data['user_id'])
         data['storage_updated'] = data['original_storage'] + data['req_size']
         data['original_unit'] = 'MB'
-        data['udated_unit'] = 'MB'
+        data['storage_unit'] = 'MB'
 
         update_storage = HelperClass.update_user_storage(data)
         if not update_storage:
