@@ -549,7 +549,7 @@
                 console.log("Current path:", currentPath);
 
                 // Always start with Home, linking to the user's base folder
-                breadcrumb.innerHTML = `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${rootFolderPath}')">Home</a></li>`;
+                breadcrumb.innerHTML = `<li class="breadcrumb-item"><a href="javascript:void(0)" onclick="fetchFileList('${rootFolderPath}')">Home</a></li>`;
 
                 if (parts.length === 0) return;
 
@@ -566,13 +566,13 @@
 
                             if (parts.length > 1) {
                                 const fullPathWithSlash = fullPath + '/';
-                                breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${fullPathWithSlash}')">${formattedName}</a></li>`;
+                                breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="javascript:void(0)" onclick="fetchFileList('${fullPathWithSlash}')">${formattedName}</a></li>`;
                             } else {
                                 breadcrumb.innerHTML += `<li class="breadcrumb-item active">${formattedName}</li>`;
                             }
                         } else {
                             breadcrumb.innerHTML += `<li class="breadcrumb-item${parts.length === 1 ? ' active' : ''}">
-                        ${parts.length > 1 ? `<a href="#" onclick="fetchFileList('${fullPath}/')">${part}</a>` : part}
+                        ${parts.length > 1 ? `<a href="javascript:void(0)" onclick="fetchFileList('${fullPath}/')">${part}</a>` : part}
                     </li>`;
                         }
                     } else {
@@ -583,7 +583,7 @@
                         if (isLastItem) {
                             breadcrumb.innerHTML += `<li class="breadcrumb-item active">${displayName}</li>`;
                         } else {
-                            breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="fetchFileList('${fullPathWithSlash}')">${displayName}</a></li>`;
+                            breadcrumb.innerHTML += `<li class="breadcrumb-item"><a href="javascript:void(0)" onclick="fetchFileList('${fullPathWithSlash}')">${displayName}</a></li>`;
                         }
                     }
                 });
@@ -643,16 +643,16 @@
                         <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="folderDropdownCard_${item.name}" style="border-radius: 12px;">
                             ${!item.user_folder ? `
                             ${item.owner ? `
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
                                     <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
                             </a>
                             `:``}
                             `:``}
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
                                     <i class="fa-solid fa-download me-2" ></i> Download
                             </a>
                             ${item.owner ? `
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
                                     <i class="fa-solid fa-trash-can me-2"></i> Delete
                             </a>
                             `:``}
@@ -663,13 +663,13 @@
                         data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="fileDropdownCard_${item.name}" style="border-radius: 12px;">
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
                                     <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
                             </a>
                             <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
                                     <i class="fa-solid fa-download me-2 "></i> Download
                             </a>
-                            <a class="dropdown-item fs-7" href="#">
+                            <a class="dropdown-item fs-7" href="javascript:void(0)">
                                     <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
                             </a>
                         </ul>
@@ -739,16 +739,16 @@
                         <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="folderDropdownTable_${item.name}" style="border-radius: 12px;">
                             ${!item.user_folder ? `
                             ${item.owner ? `
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
                                     <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
                             </a>
                             `:``}
                             `:``}
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); downloadFolder(${JSON.stringify(item.path)}, ${JSON.stringify(item.name)})'>
                                     <i class="fa-solid fa-download me-2" ></i> Download
                             </a>
                             ${item.owner ? `
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); deleteFolder("${item.path}", "${item.name}")'>
                                     <i class="fa-solid fa-trash-can me-2"></i> Delete
                             </a>
                             `:``}
@@ -762,13 +762,13 @@
                         data-bs-toggle="dropdown" aria-expanded="false" style="border:none;"><i class="fa-solid fa-ellipsis-vertical text-muted"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="fileDropdownTable_${item.name}" style="border-radius: 12px;">
-                            <a class="dropdown-item fs-7" href="#" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick='event.stopPropagation(); showRenameForm(${JSON.stringify(item)})'>
                                     <i class="fa-solid fa-i-cursor pe-1 me-2"></i> Rename
                             </a>
                             <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
                                     <i class="fa-solid fa-download me-2 "></i> Download
                             </a>
-                            <a class="dropdown-item fs-7" href="#">
+                            <a class="dropdown-item fs-7" href="javascript:void(0)">
                                     <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
                             </a>
                         </ul>
@@ -1521,7 +1521,6 @@
     window.downloadCancelled = false;
     window.downloadCompleted = false;
     resetProgressUI();
-    toggleSpinner();
     console.log('Starting folder download:', folderPath);
     
     try {
@@ -1663,7 +1662,6 @@
             updateMainStatus(`Error: ${error.message}`);
         }
     } finally {
-        toggleSpinner();
     }
 }
 
