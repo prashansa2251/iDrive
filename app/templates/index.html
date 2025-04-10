@@ -669,8 +669,8 @@
                             <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
                                     <i class="fa-solid fa-download me-2 "></i> Download
                             </a>
-                            <a class="dropdown-item fs-7" href="javascript:void(0)">
-                                    <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')">
+                                    <i class="fa-solid fa-trash-can me-2" ></i> Delete
                             </a>
                         </ul>
                 </div>
@@ -768,8 +768,8 @@
                             <a class="dropdown-item fs-7" href="/stream_download/${item.path}" onclick="event.stopPropagation(); handleDownload(event,this);">
                                     <i class="fa-solid fa-download me-2 "></i> Download
                             </a>
-                            <a class="dropdown-item fs-7" href="javascript:void(0)">
-                                    <i class="fa-solid fa-trash-can me-2 onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')""></i> Delete
+                            <a class="dropdown-item fs-7" href="javascript:void(0)" onclick="event.stopPropagation(); deleteFile('${item.path}','${item.name}')">
+                                    <i class="fa-solid fa-trash-can me-2" ></i> Delete
                             </a>
                         </ul>
                 </div>
