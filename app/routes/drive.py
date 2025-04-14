@@ -90,7 +90,7 @@ def create_drive_blp(socketio):
                                             'name': format_folder_name(parts[1]),
                                             'path': folder_name + "/",
                                             'is_directory': True,
-                                            'owner': True,
+                                            'owner': False,
                                             'user_folder':True,
                                             'size': HelperClass.format_file_size_bytes(total_size) if total_size else None,
                                             'allocated_storage': allocated_storage,
@@ -243,6 +243,8 @@ def create_drive_blp(socketio):
                                             'path': subfolder_prefix,
                                             'size': HelperClass.format_file_size_bytes(total_size),
                                             'is_directory': True,
+                                            'owner': True,
+                                            'user_folder':False,
                                             'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
                                         })
                                     continue  # Skip further processing for subfolders
@@ -261,6 +263,8 @@ def create_drive_blp(socketio):
                                     'sizebytes': sizebytes,
                                     'path': file_key,
                                     'is_directory': False,
+                                    'owner': True,
+                                    'user_folder':False,
                                     'size': HelperClass.format_file_size_bytes(sizebytes),
                                     'upload_date': HelperClass.convert_to_ist(item.get('LastModified', datetime.now()))
                                 })
@@ -309,6 +313,7 @@ def create_drive_blp(socketio):
                                             'path': folder_name + "/",
                                             'owner':True,
                                             'is_directory': True,
+                                            'user_folder':True,
                                             'size': HelperClass.format_file_size_bytes(total_size) if total_size else None,
                                             'allocated_storage': allocated_storage,
                                             'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
@@ -363,6 +368,7 @@ def create_drive_blp(socketio):
                                             'name':  format_folder_name(subfolder_name),
                                             'path': subfolder_prefix,
                                             'owner':True,
+                                            'user_folder':False,
                                             'is_directory': True,
                                             'size': HelperClass.format_file_size_bytes(total_size),
                                             'upload_date': HelperClass.convert_to_ist(last_modified) if last_modified else None
@@ -383,6 +389,7 @@ def create_drive_blp(socketio):
                                         'original_filename': original_filename,
                                         'sizebytes': sizebytes,
                                         'owner':True,
+                                        'user_folder':False,
                                         'path': file_key,
                                         'is_directory': False,
                                         'size': HelperClass.format_file_size_bytes(sizebytes),
@@ -887,7 +894,134 @@ def create_drive_blp(socketio):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
         
+    
+    @blp.route('/list_folders/<path:path>', methods=['GET'])
+    def list_folders(path):
+        """List all folders in the given path"""
         
+        s3 = get_s3_client()
+        response = s3.list_objects_v2(
+            Bucket=BUCKET_NAME,
+            Prefix=path,
+            Delimiter='/'
+        )
+        
+        folders = []
+        if 'CommonPrefixes' in response:
+            for folder in response['CommonPrefixes']:
+                folder_name = folder['Prefix']
+                # Remove the current prefix to get just the folder name
+                if path:
+                    relative_name = folder_name[len(path):]
+                else:
+                    relative_name = folder_name
+                folders.append({
+                    'path': folder_name,
+                    'name': relative_name.rstrip('/')
+                })
+        response = {'folders': folders,'status':200}
+        return jsonify(response)
+
+    @blp.route('/move', methods=['POST'])
+    def move_item():
+        """Move a file or folder to a new location"""
+        move_to_path = request.form.get('move_to_path')
+        move_from_path = request.form.get('move_from_path')
+        items = move_from_path.split(',')
+        for dest_path in items:
+            
+        # Check if source is a folder (ends with /)
+            is_folder = dest_path.endswith('/')
+            s3 = get_s3_client()
+            if is_folder:
+                # For folders, we need to copy all objects with the folder prefix
+                response = s3.list_objects_v2(
+                    Bucket=BUCKET_NAME,
+                    Prefix=dest_path
+                )
+                
+                if 'Contents' in response:
+                    for item in response['Contents']:
+                        source_key = item['Key']
+                        # Calculate new destination key
+                        dest_key = os.path.join(move_to_path, source_key[len(dest_path):])
+                        
+                        # Copy object to new location
+                        s3.copy_object(
+                            Bucket=BUCKET_NAME,
+                            CopySource={'Bucket': BUCKET_NAME, 'Key': source_key},
+                            Key=dest_key
+                        )
+                        
+                        # Delete original
+                        s3.delete_object(
+                            Bucket=BUCKET_NAME,
+                            Key=source_key
+                        )
+            else:
+                # For single files, it's simpler
+                filename = os.path.basename(dest_path)
+                dest_key = os.path.join(move_to_path, filename)
+                
+                # Copy object to new location
+                s3.copy_object(
+                    Bucket=BUCKET_NAME,
+                    CopySource={'Bucket': BUCKET_NAME, 'Key': dest_path},
+                    Key=dest_key
+                )
+                
+                # Delete original
+                s3.delete_object(
+                    Bucket=BUCKET_NAME,
+                    Key=dest_path
+                )
+        
+        flash('File/Folder moved successfully!')
+        return redirect(url_for('drive.index'))
+
+    @blp.route('/copy', methods=['POST'])
+    def copy_item():
+        """Copy a file or folder to a new location"""
+        copy_to_path = request.form.get('copy_to_path')
+        copy_from_path = request.form.get('copy_from_path')
+        items = copy_from_path.split(',')
+        for dest_path in items:
+        # Check if source is a folder (ends with /)
+            is_folder = dest_path.endswith('/')
+            s3 = get_s3_client()
+            if is_folder:
+                # For folders, we need to copy all objects with the folder prefix
+                response = s3.list_objects_v2(
+                    Bucket=BUCKET_NAME,
+                    Prefix=dest_path
+                )
+                
+                if 'Contents' in response:
+                    for item in response['Contents']:
+                        source_key = item['Key']
+                        # Calculate new destination key
+                        dest_key = os.path.join(copy_to_path, source_key[len(dest_path):])
+                        
+                        # Copy object to new location
+                        s3.copy_object(
+                            Bucket=BUCKET_NAME,
+                            CopySource={'Bucket': BUCKET_NAME, 'Key': source_key},
+                            Key=dest_key
+                        )
+            else:
+                # For single files, it's simpler
+                filename = os.path.basename(dest_path)
+                dest_key = os.path.join(copy_to_path, filename)
+                
+                # Copy object to new location
+                s3.copy_object(
+                    Bucket=BUCKET_NAME,
+                    CopySource={'Bucket': BUCKET_NAME, 'Key': dest_path},
+                    Key=dest_key
+                )
+        flash('File copied successfully!')
+        return redirect(url_for('drive.index'))
+    
     @blp.route('/version')
     def version():
         version = HelperClass.get_version()

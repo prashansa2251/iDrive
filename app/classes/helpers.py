@@ -340,9 +340,9 @@ class HelperClass():
     
     @classmethod
     def get_superuser_requests(cls,user_id):
-        # superadmin = User.check_superadmin(user_id)
-        # if superadmin:
-        #     user_id = 0
+        superadmin = User.check_superadmin(user_id)
+        if superadmin:
+            user_id = 1
         requests = Requests.get_requests_superuser(user_id)
         unread_requests=0
         if requests:

@@ -213,17 +213,9 @@ def mark_request_read(request_id):
         flash('There was an error while connecting to database!')
         return redirect(url_for('auth.requests'))
 
-@blp.route('/requests',methods=['POST','GET'])
+@blp.route('/requests')
 @login_required
 def requests():
-    if request.method=='POST':
-        if current_user.isAdmin:
-            
-            flash("The request(s) is/are approved!!")
-            return jsonify({'redirect_url': url_for('drive.index')})
-        else:
-            flash("Only admin can approve requests!")
-            
     requests,marker = HelperClass.get_superuser_requests(current_user.id)
     
     return render_template('auth/requests.html',
