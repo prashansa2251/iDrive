@@ -87,6 +87,8 @@ class WaterBodiesMap {
                 this.focusOnWaterbody(layer);
                 // Remove from waterbodies array
                 this.waterbodies = this.waterbodies.filter(wb => wb.layer !== layer);
+                // Update statistics after deletion
+                this.updateStatistics();
             });
         });
 
@@ -181,6 +183,9 @@ class WaterBodiesMap {
 
         // Save to local storage (in a real app, this would be saved to database)
         this.saveWaterbodies();
+        
+        // Update statistics
+        this.updateStatistics();
     }
 
     createPopupContent(waterbodyData) {
@@ -255,6 +260,9 @@ class WaterBodiesMap {
                         this.waterbodies.push(wb);
                     }
                 });
+                
+                // Update statistics after loading
+                this.updateStatistics();
             } catch (e) {
                 console.error('Error loading waterbodies:', e);
             }
@@ -298,6 +306,14 @@ class WaterBodiesMap {
     // Public method to get all waterbodies
     getWaterbodies() {
         return this.waterbodies;
+    }
+
+    // Update statistics display
+    updateStatistics() {
+        const countElement = document.getElementById('waterbodiesCount');
+        if (countElement) {
+            countElement.textContent = this.waterbodies.length;
+        }
     }
 }
 

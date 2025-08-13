@@ -251,23 +251,21 @@
 <script src="{{ url_for('static', filename='js/index.js') }}"></script>
 
 <script>
-    // Update statistics when waterbodies change
+    // Handle tab switching and map resize
     document.addEventListener('DOMContentLoaded', function() {
-        if (window.waterBodiesMap) {
-            // Update count initially
-            updateWaterbodiesCount();
-            
-            // Update count when new waterbodies are added
-            // This is a simple approach - in a real app you'd use proper event listeners
-            setInterval(updateWaterbodiesCount, 1000);
+        const mapTab = document.getElementById('pills-map-tab');
+        const filesTab = document.getElementById('pills-files-tab');
+        
+        if (mapTab) {
+            mapTab.addEventListener('shown.bs.tab', function() {
+                // Trigger map resize when switching to map tab
+                if (window.waterBodiesMap && window.waterBodiesMap.map) {
+                    setTimeout(() => {
+                        window.waterBodiesMap.map.invalidateSize();
+                    }, 100);
+                }
+            });
         }
     });
-
-    function updateWaterbodiesCount() {
-        if (window.waterBodiesMap) {
-            const count = window.waterBodiesMap.getWaterbodies().length;
-            document.getElementById('waterbodiesCount').textContent = count;
-        }
-    }
 </script>
 {% endblock %}
