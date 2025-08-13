@@ -1026,5 +1026,21 @@ def create_drive_blp(socketio):
     def version():
         version = HelperClass.get_version()
         return {"version": version}
+    
+    @blp.route('/map')
+    @login_required
+    def map_view():
+        """Route for the water bodies map application"""
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        
+        # Get user's folder path for the file management integration
+        folder_path = f"{current_user.id}_{current_user.username}/"
+        message = HelperClass.get_message()
+        
+        return render_template('map.html', 
+                             folder_path=folder_path,
+                             flash_message=message)
+    
     return blp
 
