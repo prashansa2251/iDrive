@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% block title %}Water Bodies Map{% endblock %}
+
+{% block css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+<!-- Leaflet Draw CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .map-container {
+        position: relative;
+    }
+
+    .waterbody-form-container {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-width: 350px;
+        min-width: 300px;
+    }
+
+    .waterbody-popup .popup-content p {
+        margin: 2px 0;
+        font-size: 0.9em;
+    }
+
+    .form-control:focus {
+        border-color: #0078ff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 120, 255, 0.25);
+    }
+
+    .btn-primary {
+        background-color: #0078ff;
+        border-color: #0078ff;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+
+    .instructions {
+        background: #f8f9fa;
+        border-left: 4px solid #0078ff;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .stats-number {
+        font-size: 2em;
+        font-weight: bold;
+        color: #0078ff;
+    }
+
+    .nav-pills .nav-link.active {
+        background-color: #0078ff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pills-map-tab" data-bs-toggle="pill" data-bs-target="#pills-map" 
+                    type="button" role="tab" aria-controls="pills-map" aria-selected="true">
+                <i class="fa-solid fa-map me-2"></i>Water Bodies Map
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="pills-files-tab" data-bs-toggle="pill" data-bs-target="#pills-files" 
+                    type="button" role="tab" aria-controls="pills-files" aria-selected="false">
+                <i class="fa-solid fa-folder me-2"></i>File Management
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="pills-tabContent">
+        <!-- Water Bodies Map Tab -->
+        <div class="tab-pane fade show active" id="pills-map" role="tabpanel" aria-labelledby="pills-map-tab">
+            <div class="row">
+                <div class="col-md-3">
+                    <!-- Instructions -->
+                    <div class="instructions">
+                        <h6><i class="fa-solid fa-info-circle me-2"></i>Instructions</h6>
+                        <ol class="mb-0 fs-7">
+                            <li>Use the polygon tool to draw water body boundaries</li>
+                            <li>Fill in the water body attributes form</li>
+                            <li>Click "Add Water Body" to save</li>
+                            <li>Edit or delete polygons using the edit tools</li>
+                        </ol>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="stats-card">
+                        <h6><i class="fa-solid fa-chart-simple me-2"></i>Statistics</h6>
+                        <div class="text-center">
+                            <div class="stats-number" id="waterbodiesCount">0</div>
+                            <div class="text-muted fs-7">Water Bodies</div>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="stats-card">
+                        <h6><i class="fa-solid fa-palette me-2"></i>Water Body Types</h6>
+                        <div class="legend">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #4A90E2; border-radius: 3px;"></div>
+                                <span class="fs-7">Lake</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #50E3C2; border-radius: 3px;"></div>
+                                <span class="fs-7">Pond</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #F5A623; border-radius: 3px;"></div>
+                                <span class="fs-7">Reservoir</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #7ED321; border-radius: 3px;"></div>
+                                <span class="fs-7">River</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #417505; border-radius: 3px;"></div>
+                                <span class="fs-7">Stream</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="color-box me-2" style="width: 20px; height: 20px; background-color: #BD10E0; border-radius: 3px;"></div>
+                                <span class="fs-7">Wetland</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-9">
+                    <!-- Map Container -->
+                    <div class="map-container">
+                        <div id="map"></div>
+                        
+                        <!-- Water Body Form (Initially Hidden) -->
+                        <div id="waterbodyFormContainer" class="waterbody-form-container d-none">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="fa-solid fa-water me-2"></i>Add Water Body</h6>
+                                    <button type="button" class="btn-close btn-close-white" id="closeFormBtn" aria-label="Close"></button>
+                                </div>
+                                <div class="card-body">
+                                    <form id="waterbodyForm">
+                                        <div class="row">
+                                            <div class="col-12 mb-3">
+                                                <label for="waterbodyId" class="form-label fs-7">Water Body ID <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control form-control-sm" id="waterbodyId" name="waterbodyId" required>
+                                            </div>
+                                            <div class="col-12 mb-3">
+                                                <label for="type" class="form-label fs-7">Type <span class="text-danger">*</span></label>
+                                                <select class="form-select form-select-sm" id="type" name="type" required>
+                                                    <option value="">Select Type</option>
+                                                    <option value="lake">Lake</option>
+                                                    <option value="pond">Pond</option>
+                                                    <option value="reservoir">Reservoir</option>
+                                                    <option value="river">River</option>
+                                                    <option value="stream">Stream</option>
+                                                    <option value="wetland">Wetland</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="maxDepth" class="form-label fs-7">Max Depth (m)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="maxDepth" name="maxDepth">
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="spreadArea" class="form-label fs-7">Spread Area (ha)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="spreadArea" name="spreadArea">
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="shapeArea" class="form-label fs-7">Shape Area (ha)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="shapeArea" name="shapeArea">
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="minYield" class="form-label fs-7">Min Yield (m³)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="minYield" name="minYield">
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="maxYield" class="form-label fs-7">Max Yield (m³)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="maxYield" name="maxYield">
+                                            </div>
+                                            <div class="col-6 mb-3">
+                                                <label for="storageCapacity" class="form-label fs-7">Storage Capacity (m³)</label>
+                                                <input type="number" step="0.1" class="form-control form-control-sm" id="storageCapacity" name="storageCapacity">
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-2 justify-content-end">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" id="cancelFormBtn">Cancel</button>
+                                            <button type="submit" class="btn btn-primary btn-sm">Add Water Body</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Management Tab -->
+        <div class="tab-pane fade" id="pills-files" role="tabpanel" aria-labelledby="pills-files-tab">
+            <!-- Include the existing file management content -->
+            {% include 'index_content.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<!-- Leaflet Draw JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+<!-- Our map JavaScript -->
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+
+<!-- Include existing file management JavaScript -->
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+
+<script>
+    // Update statistics when waterbodies change
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.waterBodiesMap) {
+            // Update count initially
+            updateWaterbodiesCount();
+            
+            // Update count when new waterbodies are added
+            // This is a simple approach - in a real app you'd use proper event listeners
+            setInterval(updateWaterbodiesCount, 1000);
+        }
+    });
+
+    function updateWaterbodiesCount() {
+        if (window.waterBodiesMap) {
+            const count = window.waterBodiesMap.getWaterbodies().length;
+            document.getElementById('waterbodiesCount').textContent = count;
+        }
+    }
+</script>
+{% endblock %}

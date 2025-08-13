@@ -1,0 +1,303 @@
+<section id="withFiles" class="d-none">
+
+    <div class="row mt-2">
+
+
+        <div class="col-md-3 ps-0 justify-content-start d-flex">
+            <a href="{{url_for('auth.storage_details')}}" class="text-decoration-none w-100" id="storageStatus"></a>
+        </div>
+
+        <div class="col-md-6">
+            <div class="input-group pt-3">
+                <input type="text" id="searchInput" class="form-control rounded-start-5" placeholder="Search Files"
+                    aria-describedby="searchInput_2">
+                <span class="input-group-text rounded-end-5" id="searchInput_2">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex justify-content-end">
+            <button type="button" class="btn btn-primary mt-3 me-2 no-loader" id="newDropdown" data-bs-toggle="dropdown"
+                aria-expanded="false">
+                <i class="fa-solid fa-plus"></i> <span class="ms-2">New</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end p-3 shadow" aria-labelledby="newDropdown"
+                style="min-width: 300px; border-radius: 12px;">
+                <a class="dropdown-item fs-7" href="{{ url_for('drive.upload_get') }}">
+                    <i class="fa-solid fa-file-arrow-up me-2"></i> Upload Files
+                </a>
+                <button class="dropdown-item fs-7 no-loader" id="newFolderBtn">
+                    <i class="fa-solid fa-folder-plus me-2"></i> Create Folder
+                </button>
+            </ul>
+        </div>
+    </div>
+    <section>
+
+        <div class="row">
+            <div class="col ps-0">
+                <ol id="breadcrumb" class="breadcrumb fs-7" style="border: none; box-shadow: none;"></ol>
+            </div>
+            <div class="col-md-2 pt-3 align-items-center justify-content-end d-flex" id="viewToggleBtn">
+                <div class="view-toggle d-flex justify-content-end mb-3">
+                    <div class="btn-group border" role="group">
+                        <button type="button" class="btn btn-secondary active text-primary no-loader" id="cardViewBtn">
+                            <i class="fa-solid fa-table-cells-large"></i><i class="fa-solid fa-check ms-1 fa-sm"></i>
+                        </button>
+                        <button type="button" class="btn btn-secondary no-loader" id="tableViewBtn">
+                            <i class="fa-solid fa-list-ul text-muted"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div id="bulk-actions" class="mb-2 rounded-2 d-none">
+        <div class="row align-items-center">
+            <div class="col-auto d-flex gap-3">
+                <button onclick="deselectAllRows()" class="btn btn-sm btn-outline-light no-loader">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="fs-8 ms-2 text-center d-flex align-items-center">
+                    <span id="selected-count" class="me-1">0 </span> items selected
+                </div>
+                <div class="d-flex gap-2 ms-3">
+                    <button onclick="selectAllRows()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        Select All
+                    </button>
+                    <button onclick="deselectAllRows()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        Deselect All
+                    </button>
+                </div>
+                <div class="d-flex gap-2 ms-3">
+                    <button onclick="bulkCopy()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        Copy
+                    </button>
+                    <button onclick="bulkMove()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        Move
+                    </button>
+                </div>
+                <div class="d-flex gap-2 ms-3">
+                    <button onclick="bulkDownload()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                    <button onclick="bulkDelete()" class="btn btn-sm btn-outline-light fs-8 no-loader">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                
+            </div>
+
+        </div>
+    </div>
+    <!-- Card View Container -->
+    <div id="cardView" class="row row-cols-1 row-cols-md-5 row-cols-lg-6 g-2 mt-2" style="display: flex;">
+        <!-- Files will be dynamically populated here -->
+    </div>
+
+    <!-- Table View Container -->
+    <div id="tableView" style="display: none;">
+        <table class="table table-hover table-sm">
+            <thead class="table-primary">
+                <tr>
+                    <input type="checkbox" class="d-none" id="selectAllCheckBox"></th>
+                    <th class="text-center">Type</th>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th class="">Last Modified</th>
+                    <th class=""></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Files will be dynamically populated here -->
+            </tbody>
+        </table>
+    </div>
+</section>
+<section id="noFiles" class="d-none">
+    <div class="text-center py-5">
+        <div class="display-1 text-muted mb-3">
+            <i class="fa-solid fa-cloud-arrow-up text-muted fs-1"></i>
+        </div>
+        <h2 class="text-muted">No files uploaded yet</h2>
+        <p class="lead">Upload your first file to get started</p>
+        <a type="button" class="btn btn-primary" href="/upload">
+            <i class="fa-solid fa-plus"></i> <span class="ms-2">Upload New File</span>
+        </a>
+    </div>
+</section>
+<section id="noFilesFolder" class="d-none">
+    <div class="col ps-0">
+        <ol id="breadcrumbFolder" class="breadcrumb fs-7" style="border: none; box-shadow: none;"></ol>
+    </div>
+    <div class="text-center py-5">
+        <div class="display-1 text-muted mb-3">
+            <i class="fa-solid fa-cloud-arrow-up text-muted fs-1"></i>
+        </div>
+        <h2 class="text-muted">No files in this folder</h2>
+        <p class="lead">Upload your first file to get started</p>
+        <a type="button" class="btn btn-primary" href="/upload">
+            <i class="fa-solid fa-plus"></i> <span class="ms-2">Upload New File</span>
+        </a>
+    </div>
+</section>
+<section id="newFolder" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6">Create New Folder</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="folderForm" action="{{url_for('drive.create_folder')}}" method="POST">
+                            <input type="hidden" name="current_path" id="currentPath">
+                            <div class="mb-3">
+                                <label for="folderName" class="form-label fs-7">Folder Name</label>
+                                <input type="text" class="form-control" id="folderName" name="folder_name">
+                            </div>
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader" href="javascript:void(0)" onclick="cancelOperation()">Back</a>
+                                <button type="submit" class="btn btn-primary fs-7">Create Folder</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+<section id="renameSection" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6">Rename</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="renameForm" action="{{url_for('drive.rename')}}" method="POST">
+                            <input type="hidden" name="rename_path" id="renamePath">
+                            <input type="hidden" name="is_directory" id="isDirectory">
+                            <input type="hidden" name="original_name" id="originalName">
+                            <input type="hidden" name="old_name" id="oldName">
+                            <input type="hidden" name="file_extension" id="fileExtension">
+
+                            <div class="mb-3">
+                                <label for="renameName" class="form-label fs-7">Name</label>
+                                <input type="text" class="form-control" id="renameName" name="rename_name">
+                            </div>
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader" href="javascript:void(0)" onclick="cancelOperation()">Back</a>
+                                <button type="submit" class="btn btn-primary fs-7">Rename</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+</section>
+<!-- Download Progress UI -->
+<div id="download-progress-container" class="position-fixed rounded shadow"
+    style="bottom: 20px; right: 20px; width: 320px; max-height: 400px; z-index: 9998; background-color: white; display: none;">
+    <!-- Header -->
+    <div class="p-2 fs-7  bg-light border-bottom d-flex justify-content-between align-items-center">
+        <div id="download-title" class="fw-bold">Downloading files</div>
+        <button class="btn-close no-loader btn-danger" onclick="stopBulkDownload()"></button>
+    </div>
+    <div id="download-warning-text" class="text-danger text-center fs-8 p-2">
+        <span><i class="fa-solid fa-triangle-exclamation"></i> Please Do not close this page or perform any tasks until
+            download completes.</span>
+    </div>
+    <!-- Main Status Area -->
+    <div id="download-main-status" class="p-2 border-bottom">
+        <div id="download-status-text" class="mb-2 fs-8">Preparing download...</div>
+        <div class="progress" style="height: 5px;">
+            <div id="download-total-progress" class="progress-bar" role="progressbar" style="width: 0%"
+                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div id="download-status-details" class="d-flex justify-content-between mt-1 fs-8 text-muted small">
+            <span id="download-speed" class="fs-8">-</span>
+            <span id="download-eta" class="fs-8">-</span>
+        </div>
+    </div>
+
+    <!-- Error Items Container -->
+    <div id="download-errors-container" class="overflow-auto border-top d-none" style="max-height: 200px;">
+        <!-- Error items will be dynamically added here -->
+    </div>
+</div>
+<section id="moveSection" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6 m-0">Move to folder</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="col ps-0">
+                            <ol id="breadcrumbMove" class="breadcrumb fs-7 p-0 m-0" style="border: none; box-shadow: none;"></ol>
+                        </div>
+                        <p class="fs-7">Select destination folder:</p>
+                        <div class="folder-list">
+                            <table class="table table-hover table-sm">
+                                
+                                <tbody id="moveFolderList">
+                                    <!-- Folders will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <form action="{{url_for('drive.move_item')}}" method="POST" id="moveForm">
+                            <input type="hidden" name="move_to_path" id="moveToPath">
+                            <input type="hidden" name="move_from_path" id="moveFromPath">
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader cancelOperation" href="javascript:void(0)" onclick="cancelOperation()">Cancel</a>
+                                <button id="moveConfirmBtn" class="btn btn-primary fs-7">Move Here</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+</section>
+<section id="copySection" class="mt-5 d-none">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    
+                    <div class="card-header bg-primary text-white text-center">
+                        <h5 class="fs-6 m-0">Copy to folder</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="col ps-0">
+                            <ol id="breadcrumbCopy" class="breadcrumb fs-7 p-0 m-0" style="border: none; box-shadow: none;"></ol>
+                        </div>
+                        <p class="fs-7">Select destination folder:</p>
+                        <div class="folder-list">
+                            <table class="table table-hover table-sm">
+                                
+                                <tbody id="copyFolderList">
+                                    <!-- Folders will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <form action="{{url_for('drive.copy_item')}}" method="POST" id="copyForm">
+                            <input type="hidden" name="copy_to_path" id="copyToPath">
+                            <input type="hidden" name="copy_from_path" id="copyFromPath">
+                            <div class="mb-3 d-flex justify-content-center gap-3">
+                                <a class="btn btn-outline-dark fs-7 no-loader" href="javascript:void(0)" onclick="cancelOperation()">Cancel</a>
+                                <button id="copyConfirmBtn" class="btn btn-primary fs-7">Copy Here</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+</section>
+
+
+<input type="hidden" name="folder_path" id="folderPath" value="{{folder_path}}">
